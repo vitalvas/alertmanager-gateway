@@ -1,0 +1,90 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the alertmanager-gateway binary
+    cmds:
+      - go build -o bin/alertmanager-gateway ./cmd/gateway
+
+  run:
+    desc: Run the alertmanager-gateway
+    cmds:
+      - go run ./cmd/gateway
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -race -v ./...
+
+  test-coverage:
+    desc: Run tests with coverage
+    cmds:
+      - go test -race -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Coverage report generated in coverage.html"
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  fmt:
+    desc: Format code with gofmt
+    cmds:
+      - gofmt -w .
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf bin/
+      - rm -f coverage.out coverage.html
+
+  deps:
+    desc: Download and tidy dependencies
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  verify:
+    desc: Verify dependencies
+    cmds:
+      - go mod verify
+
+  install-tools:
+    desc: Install required development tools
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+  check:
+    desc: Run all checks (fmt, lint, test)
+    cmds:
+      - task: fmt
+      - task: lint
+      - task: test
+
+  e2e:
+    desc: Run end-to-end tests
+    dir: test/e2e
+    cmds:
+      - go test -v .
+
+  bench:
+    desc: Run benchmarks
+    cmds:
+      - go test -bench=. -benchmem ./...
+
+  mod-update:
+    desc: Update all dependencies
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+
+  generate:
+    desc: Run go generate
+    cmds:
+      - go generate ./...
