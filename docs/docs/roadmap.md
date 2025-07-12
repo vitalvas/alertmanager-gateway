@@ -140,7 +140,7 @@ This document outlines the implementation plan for the Alertmanager Gateway, org
 ```
 alertmanager-gateway/
 ├── cmd/
-│   └── gateway/
+│   └── alertmanager-gateway/
 │       └── main.go
 ├── internal/
 │   ├── alertmanager/    # Alertmanager webhook types and parser
