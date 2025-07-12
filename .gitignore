@@ -35,6 +35,7 @@ Thumbs.db
 .env.local
 
 # Configuration files with secrets
+config.yaml
 config.local.yaml
 config.prod.yaml
 
