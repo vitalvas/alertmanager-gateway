@@ -48,7 +48,7 @@ destinations:
 ```bash
 export GATEWAY_PASSWORD="your-secure-password"
 export FLOCK_WEBHOOK_ID="your-flock-webhook-id"
-go run ./cmd/alertmanager-gateway
+go run .
 ```
 
 3. Configure Alertmanager:

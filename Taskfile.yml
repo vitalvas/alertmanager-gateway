@@ -9,12 +9,12 @@ tasks:
   build:
     desc: Build the alertmanager-gateway binary
     cmds:
-      - go build -o bin/alertmanager-gateway ./cmd/alertmanager-gateway
+      - go build -o bin/alertmanager-gateway .
 
   run:
     desc: Run the alertmanager-gateway
     cmds:
-      - go run ./cmd/alertmanager-gateway
+      - go run .
 
   test:
     desc: Run all tests

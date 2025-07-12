@@ -139,9 +139,7 @@ This document outlines the implementation plan for the Alertmanager Gateway, org
 ### Project Structure
 ```
 alertmanager-gateway/
-├── cmd/
-│   └── alertmanager-gateway/
-│       └── main.go
+├── main.go
 ├── internal/
 │   ├── alertmanager/    # Alertmanager webhook types and parser
 │   ├── config/          # Configuration management
