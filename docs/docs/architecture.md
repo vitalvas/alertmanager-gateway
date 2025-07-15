@@ -99,8 +99,8 @@ server:
 
 destinations:
   # Using Go template (default)
+  # Webhook URL will be: /webhook/slack
   - name: "slack"
-    path: "/webhook/slack"
     method: "POST"
     url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
     headers:
@@ -124,8 +124,8 @@ destinations:
       }
     
   # Using jq engine
+  # Webhook URL will be: /webhook/slack-jq
   - name: "slack-jq"
-    path: "/webhook/slack-jq"
     method: "POST"
     url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
     headers:
@@ -146,7 +146,6 @@ destinations:
       }
     
   - name: "custom-api"
-    path: "/webhook/custom"
     method: "POST"
     url: "https://api.example.com/alerts"
     headers:
@@ -162,7 +161,7 @@ destinations:
       }
     
   - name: "legacy-system"
-    path: "/webhook/legacy"
+    # Webhook URL will be: /webhook/legacy
     method: "POST"
     url: "https://legacy.example.com/alert"
     format: "form"
@@ -172,7 +171,7 @@ destinations:
       message={{ .CommonAnnotations.summary | urlquery }}
     
   - name: "monitoring-tool"
-    path: "/webhook/monitor"
+    # Webhook URL will be: /webhook/monitor
     method: "GET"
     url: "https://monitor.example.com/api/alert"
     format: "query"
@@ -297,7 +296,7 @@ The gateway supports embedded jq transformations using the gojq library (github.
 ```yaml
 destinations:
   - name: "slack-jq"
-    path: "/webhook/slack"
+    # Webhook URL will be: /webhook/slack
     method: "POST"
     url: "https://hooks.slack.com/services/XXX"
     format: "json"
@@ -326,7 +325,7 @@ destinations:
       }
 
   - name: "custom-api-jq"
-    path: "/webhook/custom"
+    # Webhook URL will be: /webhook/custom
     method: "POST"
     url: "https://api.example.com/alerts"
     format: "json"
@@ -345,7 +344,7 @@ destinations:
         })
 
   - name: "aggregated-alerts"
-    path: "/webhook/aggregate"
+    # Webhook URL will be: /webhook/aggregate
     method: "POST"
     url: "https://monitoring.example.com/bulk"
     format: "json"
@@ -382,7 +381,7 @@ For complex scenarios, you can use both engines:
 ```yaml
 destinations:
   - name: "hybrid-transform"
-    path: "/webhook/hybrid"
+    # Webhook URL will be: /webhook/hybrid
     method: "POST"
     url: "{{ .Env.WEBHOOK_URL }}"  # Go template for URL
     format: "json"
@@ -513,7 +512,7 @@ Alertmanager groups alerts by default, but some destination systems require indi
 destinations:
   # Split alerts and send individually
   - name: "ticketing-system"
-    path: "/webhook/tickets"
+    # Webhook URL will be: /webhook/tickets
     method: "POST"
     url: "https://tickets.example.com/api/create"
     format: "json"
@@ -533,7 +532,7 @@ destinations:
 
   # Split with batching
   - name: "sms-gateway"
-    path: "/webhook/sms"
+    # Webhook URL will be: /webhook/sms
     method: "POST"
     url: "https://sms.example.com/send"
     format: "json"
@@ -553,7 +552,7 @@ destinations:
 
   # Conditional splitting based on labels
   - name: "mixed-handler"
-    path: "/webhook/mixed"
+    # Webhook URL will be: /webhook/mixed
     method: "POST"
     url: "https://api.example.com/alerts"
     format: "json"
@@ -585,7 +584,7 @@ destinations:
 ```yaml
 destinations:
   - name: "severity-router"
-    path: "/webhook/route"
+    # Webhook URL will be: /webhook/route
     split_strategy: "by_field"
     split_field: "labels.severity"
     routes:
@@ -616,7 +615,7 @@ destinations:
 ```yaml
 destinations:
   - name: "email-batch"
-    path: "/webhook/email"
+    # Webhook URL will be: /webhook/email
     method: "POST"
     url: "https://email.example.com/send"
     split_alerts: true
@@ -647,7 +646,7 @@ destinations:
 ```yaml
 destinations:
   - name: "parallel-processor"
-    path: "/webhook/parallel"
+    # Webhook URL will be: /webhook/parallel
     split_alerts: true
     parallel_requests: 5  # Process up to 5 alerts simultaneously
     retry_policy:

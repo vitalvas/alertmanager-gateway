@@ -20,14 +20,15 @@ func TestHealthEndpoints(t *testing.T) {
 			Port: 8080,
 		},
 		Destinations: []config.DestinationConfig{
-			{Name: "test", Path: "/webhook/test", URL: "http://example.com", Enabled: true},
+			{Name: "test", URL: "http://example.com", Enabled: true, Engine: "go-template", Template: `{"status": "{{.Status}}"}`, Method: "POST", Format: "json"},
 		},
 	}
 
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
-	
-	server := New(cfg, logger)
+
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name           string
@@ -94,7 +95,8 @@ func TestHealthReadyNoDestinations(t *testing.T) {
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/health/ready", nil)
 	w := httptest.NewRecorder()
@@ -104,7 +106,7 @@ func TestHealthReadyNoDestinations(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 
 	var body map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &body)
+	err = json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "no destinations configured", body["status"])
@@ -120,7 +122,8 @@ func TestMetricsEndpoint(t *testing.T) {
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/metrics", nil)
 	w := httptest.NewRecorder()
@@ -140,16 +143,16 @@ func TestListDestinations(t *testing.T) {
 		},
 		Destinations: []config.DestinationConfig{
 			{
-				Name:    "dest1",
-				Path:    "/webhook/dest1",
-				Method:  "POST",
-				Format:  "json",
-				URL:     "http://example.com",
-				Enabled: true,
+				Name:     "dest1",
+				Method:   "POST",
+				Format:   "json",
+				URL:      "http://example.com",
+				Enabled:  true,
+				Engine:   "go-template",
+				Template: `{"status": "{{.Status}}"}`,
 			},
 			{
 				Name:    "dest2",
-				Path:    "/webhook/dest2",
 				Method:  "GET",
 				Format:  "query",
 				URL:     "http://example.com",
@@ -159,7 +162,8 @@ func TestListDestinations(t *testing.T) {
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/api/v1/destinations", nil)
 	w := httptest.NewRecorder()
@@ -169,7 +173,7 @@ func TestListDestinations(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var body map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &body)
+	err = json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 
 	destinations := body["destinations"].([]interface{})
@@ -177,7 +181,7 @@ func TestListDestinations(t *testing.T) {
 
 	dest := destinations[0].(map[string]interface{})
 	assert.Equal(t, "dest1", dest["name"])
-	assert.Equal(t, "/webhook/dest1", dest["path"])
+	assert.Equal(t, "/webhook/dest1", dest["webhook_url"])
 	assert.Equal(t, "POST", dest["method"])
 	assert.Equal(t, "json", dest["format"])
 	assert.Equal(t, true, dest["enabled"])
@@ -191,14 +195,13 @@ func TestGetDestination(t *testing.T) {
 		},
 		Destinations: []config.DestinationConfig{
 			{
-				Name:       "test-dest",
-				Path:       "/webhook/test",
-				Method:     "POST",
-				Format:     "json",
-				Engine:     "jq",
-				URL:        "http://example.com/webhook",
-				Transform:  `{"test": "data"}`,
-				Enabled:    true,
+				Name:        "test-dest",
+				Method:      "POST",
+				Format:      "json",
+				Engine:      "go-template",
+				URL:         "http://example.com/webhook",
+				Template:    `{"test": "{{.Status}}"}`,
+				Enabled:     true,
 				SplitAlerts: true,
 				BatchSize:   10,
 				Retry: config.RetryConfig{
@@ -210,7 +213,8 @@ func TestGetDestination(t *testing.T) {
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/api/v1/destinations/test-dest", nil)
 	w := httptest.NewRecorder()
@@ -220,14 +224,15 @@ func TestGetDestination(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var body map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &body)
+	err = json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test-dest", body["name"])
-	assert.Equal(t, "/webhook/test", body["path"])
+	assert.Equal(t, "/webhook/test-dest", body["webhook_url"])
 	assert.Equal(t, "POST", body["method"])
+	assert.Contains(t, body["target_url"], "http://exa")
 	assert.Equal(t, "json", body["format"])
-	assert.Equal(t, "jq", body["engine"])
+	assert.Equal(t, "go-template", body["engine"])
 	assert.Equal(t, true, body["split_alerts"])
 	assert.Equal(t, float64(10), body["batch_size"])
 
@@ -246,7 +251,8 @@ func TestGetDestinationNotFound(t *testing.T) {
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/api/v1/destinations/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -256,7 +262,7 @@ func TestGetDestinationNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var body map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &body)
+	err = json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "error", body["status"])
@@ -275,12 +281,13 @@ func TestBasicAuth(t *testing.T) {
 			},
 		},
 		Destinations: []config.DestinationConfig{
-			{Name: "test", Path: "/webhook/test", URL: "http://example.com", Enabled: true},
+			{Name: "test", URL: "http://example.com", Enabled: true, Engine: "go-template", Template: `{"status": "{{.Status}}"}`, Method: "POST", Format: "json"},
 		},
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name           string
@@ -304,7 +311,7 @@ func TestBasicAuth(t *testing.T) {
 			name:           "valid credentials",
 			endpoint:       "/webhook/test",
 			auth:           "Basic " + base64.StdEncoding.EncodeToString([]byte("testuser:testpass")),
-			expectedStatus: http.StatusNotImplemented, // Because webhook handler is not implemented yet
+			expectedStatus: http.StatusBadRequest, // Empty body
 		},
 		{
 			name:           "health endpoint no auth",
@@ -347,12 +354,13 @@ func TestAPIAuth(t *testing.T) {
 			},
 		},
 		Destinations: []config.DestinationConfig{
-			{Name: "test", Path: "/webhook/test", URL: "http://example.com", Enabled: true},
+			{Name: "test", URL: "http://example.com", Enabled: true, Engine: "go-template", Template: `{"status": "{{.Status}}"}`, Method: "POST", Format: "json"},
 		},
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name           string
@@ -403,7 +411,8 @@ func TestNotFound(t *testing.T) {
 	}
 
 	logger := logrus.New()
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -413,7 +422,7 @@ func TestNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var body map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &body)
+	err = json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 
 	assert.Equal(t, "error", body["status"])
@@ -434,7 +443,8 @@ func TestLoggingMiddleware(t *testing.T) {
 	hook := &testLogHook{}
 	logger.AddHook(hook)
 
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/health", nil)
 	req.Header.Set("User-Agent", "test-agent")
@@ -466,7 +476,8 @@ func TestRecoveryMiddleware(t *testing.T) {
 	hook := &testLogHook{}
 	logger.AddHook(hook)
 
-	server := New(cfg, logger)
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
 
 	// Add a route that panics
 	server.router.HandleFunc("/panic", func(_ http.ResponseWriter, _ *http.Request) {
@@ -491,6 +502,37 @@ func TestRecoveryMiddleware(t *testing.T) {
 		}
 	}
 	assert.True(t, panicLogged, "Panic should have been logged")
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			Host: "localhost",
+			Port: 8080,
+		},
+		Destinations: []config.DestinationConfig{},
+	}
+
+	logger := logrus.New()
+	server, err := New(cfg, logger)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+
+	server.router.ServeHTTP(w, req)
+
+	// Check that security headers are set
+	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "1; mode=block", w.Header().Get("X-XSS-Protection"))
+	assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
+	assert.Equal(t, "default-src 'self'", w.Header().Get("Content-Security-Policy"))
+	assert.Equal(t, "max-age=31536000; includeSubDomains", w.Header().Get("Strict-Transport-Security"))
+	assert.Equal(t, "no-store, no-cache, must-revalidate, proxy-revalidate", w.Header().Get("Cache-Control"))
+	assert.Equal(t, "no-cache", w.Header().Get("Pragma"))
+	assert.Equal(t, "0", w.Header().Get("Expires"))
+	assert.Equal(t, "", w.Header().Get("Server"))
 }
 
 func TestServerShutdown(t *testing.T) {

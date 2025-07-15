@@ -42,7 +42,7 @@ server:
 
 destinations:
   - name: "slack"
-    path: "/webhook/slack"
+    # Webhook URL will be: /webhook/slack
     method: "POST"
     url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
     format: "json"

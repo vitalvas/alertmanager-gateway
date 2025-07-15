@@ -45,3 +45,4 @@ config.prod.yaml
 
 # Go workspace file
 go.work
+alertmanager-gateway

@@ -45,14 +45,18 @@ func main() {
 			logger.WithFields(logrus.Fields{
 				"name":   dest.Name,
 				"method": dest.Method,
-				"path":   dest.Path,
+				"url":    "/webhook/" + dest.Name,
 				"engine": dest.Engine,
 			}).Info("Destination configured")
 		}
 	}
 
 	// Create and run server
-	srv := server.New(cfg, logger)
+	srv, err := server.New(cfg, logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create server")
+	}
+
 	if err := srv.Run(); err != nil {
 		logger.WithError(err).Fatal("Server failed")
 	}

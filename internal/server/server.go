@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof" // Enable pprof endpoints for profiling
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,28 +13,37 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/vitalvas/alertmanager-gateway/internal/config"
+	"github.com/vitalvas/alertmanager-gateway/internal/webhook"
 )
 
 // Server represents the HTTP server
 type Server struct {
-	config     *config.Config
-	router     *mux.Router
-	httpServer *http.Server
-	logger     *logrus.Logger
+	config         *config.Config
+	router         *mux.Router
+	httpServer     *http.Server
+	logger         *logrus.Logger
+	webhookHandler *webhook.Handler
 }
 
 // New creates a new server instance
-func New(cfg *config.Config, logger *logrus.Logger) *Server {
+func New(cfg *config.Config, logger *logrus.Logger) (*Server, error) {
+	webhookHandler, err := webhook.NewHandler(cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create webhook handler: %w", err)
+	}
+
 	s := &Server{
-		config: cfg,
-		logger: logger,
-		router: mux.NewRouter(),
+		config:         cfg,
+		logger:         logger,
+		router:         mux.NewRouter(),
+		webhookHandler: webhookHandler,
 	}
 
 	// Setup routes
 	s.setupRoutes()
 
 	// Setup middleware
+	s.router.Use(s.securityHeadersMiddleware)
 	s.router.Use(s.loggingMiddleware)
 	s.router.Use(s.recoveryMiddleware)
 
@@ -46,7 +56,7 @@ func New(cfg *config.Config, logger *logrus.Logger) *Server {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	return s
+	return s, nil
 }
 
 // Run starts the server with graceful shutdown
@@ -94,13 +104,23 @@ func (s *Server) Shutdown() error {
 		return fmt.Errorf("server shutdown error: %w", err)
 	}
 
+	// Close webhook handler
+	if err := s.webhookHandler.Close(); err != nil {
+		s.logger.WithError(err).Error("Failed to close webhook handler")
+	}
+
 	s.logger.Info("Server stopped gracefully")
 	return nil
 }
 
+// GetRouter returns the server's router for testing
+func (s *Server) GetRouter() *mux.Router {
+	return s.router
+}
+
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
-	// Health check endpoints
+	// Health check endpoints (keeping legacy endpoints for backward compatibility)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/health/live", s.handleHealthLive).Methods("GET")
 	s.router.HandleFunc("/health/ready", s.handleHealthReady).Methods("GET")
@@ -108,29 +128,56 @@ func (s *Server) setupRoutes() {
 	// Metrics endpoint (placeholder for now)
 	s.router.HandleFunc("/metrics", s.handleMetrics).Methods("GET")
 
-	// API endpoints
-	api := s.router.PathPrefix("/api/v1").Subrouter()
-	if s.config.Server.Auth.Enabled && s.config.Server.Auth.APIUsername != "" {
-		api.Use(s.apiAuthMiddleware)
-	} else if s.config.Server.Auth.Enabled {
-		api.Use(s.authMiddleware)
+	// Profiling endpoints (only in debug mode or when explicitly enabled)
+	if os.Getenv("ENABLE_PPROF") == "true" {
+		s.router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
+		s.logger.Warn("pprof endpoints enabled at /debug/pprof/")
 	}
-	api.HandleFunc("/destinations", s.handleListDestinations).Methods("GET")
-	api.HandleFunc("/destinations/{name}", s.handleGetDestination).Methods("GET")
-	api.HandleFunc("/test/{destination}", s.handleTestDestination).Methods("POST")
+
+	// API endpoints
+	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
+	if s.config.Server.Auth.Enabled && s.config.Server.Auth.APIUsername != "" {
+		apiRouter.Use(s.apiAuthMiddleware)
+	} else if s.config.Server.Auth.Enabled {
+		apiRouter.Use(s.authMiddleware)
+	}
+
+	// Register API routes
+	s.RegisterAPIRoutes(apiRouter)
 
 	// Webhook endpoints
-	webhook := s.router.PathPrefix("/webhook").Subrouter()
+	webhookRouter := s.router.PathPrefix("/webhook").Subrouter()
 	if s.config.Server.Auth.Enabled {
-		webhook.Use(s.authMiddleware)
+		webhookRouter.Use(s.authMiddleware)
 	}
-	webhook.HandleFunc("/{destination}", s.handleWebhook).Methods("POST")
+	webhookRouter.Use(webhook.ValidationMiddleware(s.logger))
+	webhookRouter.HandleFunc("/{destination}", s.webhookHandler.HandleWebhook).Methods("POST")
 
 	// Default handler for unmatched routes
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
 }
 
 // Middleware functions
+
+func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Security headers to prevent common web vulnerabilities
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+
+		// Remove server information
+		w.Header().Set("Server", "")
+
+		next.ServeHTTP(w, r)
+	})
+}
 
 func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

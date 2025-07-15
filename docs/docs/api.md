@@ -19,7 +19,7 @@ http://localhost:8080
 Receives alert notifications from Prometheus Alertmanager and forwards them to the configured destination.
 
 **Path Parameters:**
-- `destination` (string, required): The destination name matching a configured destination path
+- `destination` (string, required): The destination name as configured in the destinations list
 
 **Request Headers:**
 - `Content-Type: application/json`
@@ -189,78 +189,129 @@ Prometheus text format metrics including:
 - `alertmanager_gateway_active_requests`: Currently processing requests
 - `alertmanager_gateway_destinations_configured`: Number of configured destinations
 
-### Administrative Endpoints
+### Management API Endpoints
 
 #### GET /api/v1/destinations
 
 Lists all configured destinations.
 
+**Query Parameters:**
+- `include_disabled` (boolean, optional): Include disabled destinations in the response. Default: false
+
+**Response Codes:**
+- `200 OK`: Success
+- `401 Unauthorized`: Missing or invalid authentication
+- `500 Internal Server Error`: Server error
+
 **Response Body:**
 ```json
 {
+  "status": "success",
   "destinations": [
     {
       "name": "slack",
-      "path": "/webhook/slack",
+      "url": "https://hooks.slack.com/services/***",
       "method": "POST",
       "format": "json",
-      "enabled": true
+      "engine": "go-template",
+      "enabled": true,
+      "split_alerts": false,
+      "headers_count": 2,
+      "template_size": 450
     },
     {
       "name": "custom-api",
-      "path": "/webhook/custom",
+      "url": "https://api.example.com/***",
       "method": "POST",
       "format": "json",
-      "enabled": true
+      "engine": "jq",
+      "enabled": true,
+      "split_alerts": true,
+      "headers_count": 3,
+      "template_size": 280
     }
-  ]
+  ],
+  "total": 2,
+  "enabled": 2,
+  "disabled": 0
 }
 ```
 
 #### GET /api/v1/destinations/{name}
 
-Get details of a specific destination.
+Get detailed information about a specific destination.
 
 **Path Parameters:**
 - `name` (string, required): Destination name
 
+**Response Codes:**
+- `200 OK`: Success
+- `401 Unauthorized`: Missing or invalid authentication
+- `404 Not Found`: Destination not found
+- `500 Internal Server Error`: Server error
+
 **Response Body:**
 ```json
 {
-  "name": "slack",
-  "path": "/webhook/slack",
-  "method": "POST",
-  "url": "https://hooks.slack.com/services/***",
-  "format": "json",
-  "engine": "go-template",
-  "headers_count": 1,
-  "template_size": 450,
-  "enabled": true,
-  "split_alerts": false,
-  "retry": {
-    "max_attempts": 3,
-    "backoff": "exponential"
+  "status": "success",
+  "destination": {
+    "name": "slack",
+    "url": "https://hooks.slack.com/services/***",
+    "method": "POST",
+    "format": "json",
+    "engine": "go-template",
+    "template": "*** (450 bytes)",
+    "transform": null,
+    "headers": {
+      "Content-Type": "application/json",
+      "X-Custom-Header": "*** (masked)"
+    },
+    "enabled": true,
+    "split_alerts": false,
+    "batch_size": 10,
+    "parallel_requests": 1,
+    "retry": {
+      "max_attempts": 3,
+      "backoff": "exponential"
+    },
+    "circuit_breaker": {
+      "failure_threshold": 5,
+      "timeout": "30s",
+      "half_open_requests": 3
+    }
   }
 }
 ```
 
-**Response Body (Split Configuration):**
+**Response Body (Split Mode Configuration):**
 ```json
 {
-  "name": "ticketing-system",
-  "path": "/webhook/tickets",
-  "method": "POST",
-  "url": "https://tickets.example.com/api/***",
-  "format": "json",
-  "engine": "jq",
-  "split_alerts": true,
-  "batch_size": 1,
-  "parallel_requests": 5,
-  "enabled": true,
-  "retry": {
-    "max_attempts": 3,
-    "backoff": "exponential",
-    "per_alert": true
+  "status": "success",
+  "destination": {
+    "name": "ticketing-system",
+    "url": "https://tickets.example.com/api/***",
+    "method": "POST",
+    "format": "json",
+    "engine": "jq",
+    "template": null,
+    "transform": "*** (280 bytes)",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "*** (masked)"
+    },
+    "enabled": true,
+    "split_alerts": true,
+    "batch_size": 1,
+    "parallel_requests": 5,
+    "retry": {
+      "max_attempts": 3,
+      "backoff": "exponential"
+    },
+    "circuit_breaker": {
+      "failure_threshold": 5,
+      "timeout": "30s",
+      "half_open_requests": 3
+    }
   }
 }
 ```
@@ -370,6 +421,305 @@ Same as webhook endpoint - Prometheus Alertmanager webhook payload
   "details": "jq compile error: Unknown function 'invalid_func' at line 3",
   "template": ".alerts | map(invalid_func(.labels))"
 }
+```
+
+#### POST /api/v1/emulate/{destination}
+
+Fully emulate the webhook processing for a specific destination, including HTTP request generation and optional sending.
+
+**Path Parameters:**
+- `destination` (string, required): Destination name to emulate
+
+**Query Parameters:**
+- `dry_run` (boolean, optional): Generate the request without sending it. Default: true
+
+**Request Headers:**
+- `Content-Type: application/json`
+
+**Request Body:**
+Same as webhook endpoint - Prometheus Alertmanager webhook payload
+
+**Response Codes:**
+- `200 OK`: Emulation successful
+- `400 Bad Request`: Invalid request or processing error
+- `404 Not Found`: Destination not configured
+- `500 Internal Server Error`: Server error
+- `502 Bad Gateway`: Target system unreachable (when dry_run=false)
+
+**Response Body (Success - Dry Run):**
+```json
+{
+  "status": "success",
+  "destination": "slack",
+  "dry_run": true,
+  "transformation": {
+    "engine": "go-template",
+    "format": "json",
+    "success": true,
+    "duration_ms": 1.2
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://hooks.slack.com/services/***",
+    "headers": {
+      "Content-Type": "application/json",
+      "User-Agent": "Alertmanager-Gateway/1.0"
+    },
+    "body_size": 512,
+    "body_preview": "{\"text\":\"🚨 Alert: HighCPU is firing\",\"attachments\":[{\"color\":\"danger\",\"fields\":[{\"title\":\"Severity\",\"value\":\"critical\",\"short\":true}]}]}"
+  }
+}
+```
+
+**Response Body (Success - Actual Request):**
+```json
+{
+  "status": "success",
+  "destination": "pagerduty",
+  "dry_run": false,
+  "transformation": {
+    "engine": "jq",
+    "format": "json",
+    "success": true,
+    "duration_ms": 0.8
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://events.pagerduty.com/v2/enqueue",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "*** (masked)"
+    },
+    "body_size": 384
+  },
+  "response": {
+    "status_code": 202,
+    "status": "Accepted",
+    "headers": {
+      "X-Request-Id": ["abc123"],
+      "Content-Type": ["application/json"]
+    },
+    "body": "{\"status\":\"success\",\"message\":\"Event processed\",\"dedup_key\":\"alert-12345\"}",
+    "duration_ms": 127.5
+  }
+}
+```
+
+**Response Body (Error):**
+```json
+{
+  "status": "error",
+  "destination": "webhook",
+  "error": "Request failed",
+  "details": "Post \"https://api.example.com/webhook\": dial tcp: lookup api.example.com: no such host",
+  "transformation": {
+    "success": true,
+    "duration_ms": 0.5
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://api.example.com/webhook"
+  }
+}
+```
+
+#### GET /api/v1/info
+
+Get system information about the gateway.
+
+**Response Codes:**
+- `200 OK`: Success
+- `500 Internal Server Error`: Server error
+
+**Response Body:**
+```json
+{
+  "status": "success",
+  "info": {
+    "version": "1.0.0",
+    "build_time": "2024-01-15T10:30:00Z",
+    "go_version": "go1.21.5",
+    "os": "linux",
+    "arch": "amd64",
+    "uptime_seconds": 3600,
+    "start_time": "2024-01-15T09:30:00Z"
+  },
+  "resources": {
+    "goroutines": 42,
+    "memory": {
+      "alloc_mb": 15.2,
+      "total_alloc_mb": 127.8,
+      "sys_mb": 35.4,
+      "gc_count": 18
+    },
+    "cpu": {
+      "num_cpu": 4,
+      "go_max_procs": 4
+    }
+  },
+  "configuration": {
+    "destinations_total": 5,
+    "destinations_enabled": 4,
+    "destinations_disabled": 1,
+    "auth_enabled": true,
+    "metrics_enabled": true,
+    "config_path": "/etc/alertmanager-gateway/config.yaml",
+    "log_level": "info"
+  }
+}
+```
+
+#### GET /api/v1/health
+
+Enhanced health check with detailed component status.
+
+**Query Parameters:**
+- `verbose` (boolean, optional): Include detailed component checks. Default: false
+
+**Response Codes:**
+- `200 OK`: All components healthy
+- `503 Service Unavailable`: One or more components unhealthy
+
+**Response Body (Simple):**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "uptime_seconds": 3600,
+  "destinations": {
+    "total": 5,
+    "healthy": 4,
+    "unhealthy": 1
+  }
+}
+```
+
+**Response Body (Verbose):**
+```json
+{
+  "status": "degraded",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "uptime_seconds": 3600,
+  "components": {
+    "server": {
+      "status": "healthy",
+      "message": "Server is running"
+    },
+    "configuration": {
+      "status": "healthy",
+      "message": "Configuration loaded successfully",
+      "details": {
+        "loaded_at": "2024-01-15T09:30:00Z",
+        "reload_count": 0
+      }
+    },
+    "destinations": {
+      "status": "degraded",
+      "message": "1 destination has circuit breaker open",
+      "details": {
+        "slack": {
+          "status": "healthy",
+          "enabled": true,
+          "last_success": "2024-01-15T10:25:00Z"
+        },
+        "pagerduty": {
+          "status": "unhealthy",
+          "enabled": true,
+          "error": "Circuit breaker open",
+          "failures": 5,
+          "last_failure": "2024-01-15T10:28:00Z"
+        },
+        "webhook": {
+          "status": "healthy",
+          "enabled": true,
+          "last_success": "2024-01-15T10:29:00Z"
+        },
+        "teams": {
+          "status": "disabled",
+          "enabled": false
+        },
+        "email": {
+          "status": "healthy",
+          "enabled": true,
+          "last_success": "2024-01-15T10:27:00Z"
+        }
+      }
+    },
+    "memory": {
+      "status": "healthy",
+      "message": "Memory usage within limits",
+      "details": {
+        "usage_mb": 15.2,
+        "limit_mb": 512,
+        "percentage": 2.97
+      }
+    }
+  },
+  "warnings": [
+    "Destination 'pagerduty' has circuit breaker open",
+    "High error rate detected in last 5 minutes"
+  ]
+}
+```
+
+#### POST /api/v1/config/validate
+
+Validate a configuration file or snippet.
+
+**Request Headers:**
+- `Content-Type: application/yaml` or `application/json`
+
+**Request Body:**
+Configuration in YAML or JSON format
+
+**Response Codes:**
+- `200 OK`: Configuration is valid
+- `400 Bad Request`: Configuration is invalid
+- `500 Internal Server Error`: Server error
+
+**Response Body (Valid):**
+```json
+{
+  "status": "success",
+  "valid": true,
+  "message": "Configuration is valid",
+  "summary": {
+    "destinations": 3,
+    "auth_enabled": true,
+    "warnings": [
+      "Destination 'webhook' has no retry configuration",
+      "Consider enabling metrics for production use"
+    ]
+  }
+}
+```
+
+**Response Body (Invalid):**
+```json
+{
+  "status": "error",
+  "valid": false,
+  "error": "Configuration validation failed",
+  "errors": [
+    {
+      "field": "destinations[0].url",
+      "error": "Invalid URL format",
+      "value": "not-a-url"
+    },
+    {
+      "field": "destinations[1].engine",
+      "error": "Invalid engine type",
+      "value": "invalid-engine",
+      "allowed": ["go-template", "jq"]
+    },
+    {
+      "field": "server.port",
+      "error": "Port must be between 1 and 65535",
+      "value": 70000
+    }
+  ]
+}
+```
 
 
 ## Authentication
@@ -418,6 +768,25 @@ receivers:
           basic_auth:
             username: 'alertmanager'
             password: 'secretpassword'
+```
+
+### Rate Limiting
+
+The gateway includes built-in rate limiting for authentication failures:
+
+- **Failed attempts limit**: 5 attempts per minute per IP address
+- **Ban duration**: 15 minutes after exceeding the limit
+- **Headers**: `Retry-After` header is set when rate limited
+- **Response**: HTTP 429 Too Many Requests when rate limited
+
+Example rate limit response:
+```json
+{
+  "status": "error",
+  "error": "Too many authentication failures",
+  "retry_after": 900,
+  "timestamp": "2024-01-15T10:30:00Z"
+}
 ```
 
 ## Error Handling
@@ -524,5 +893,75 @@ curl -X POST http://localhost:8080/api/v1/test/slack \
       "startsAt": "2024-01-01T12:00:00Z"
     }]
   }'
+```
+
+### Get Destination Details
+
+```bash
+curl http://localhost:8080/api/v1/destinations/slack \
+  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+```
+
+### Emulate Request (Dry Run)
+
+```bash
+curl -X POST http://localhost:8080/api/v1/emulate/pagerduty?dry_run=true \
+  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "version": "4",
+    "groupKey": "{}:{alertname=\"DiskFull\"}",
+    "status": "firing",
+    "receiver": "gateway",
+    "alerts": [{
+      "status": "firing",
+      "labels": {
+        "alertname": "DiskFull",
+        "severity": "critical",
+        "instance": "prod-server-01"
+      },
+      "startsAt": "2024-01-01T12:00:00Z"
+    }]
+  }'
+```
+
+### Get System Info
+
+```bash
+curl http://localhost:8080/api/v1/info \
+  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+```
+
+### Get Detailed Health
+
+```bash
+curl http://localhost:8080/api/v1/health?verbose=true \
+  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+```
+
+### Validate Configuration
+
+```bash
+curl -X POST http://localhost:8080/api/v1/config/validate \
+  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
+  -H "Content-Type: application/yaml" \
+  -d '
+server:
+  port: 8080
+  auth:
+    enabled: true
+    username: alertmanager
+    password: secretpassword
+
+destinations:
+  - name: test-webhook
+    url: https://example.com/webhook
+    method: POST
+    format: json
+    engine: go-template
+    template: |
+      {"alert": "{{.Status}}"}
+    enabled: true
+'
 ```
 

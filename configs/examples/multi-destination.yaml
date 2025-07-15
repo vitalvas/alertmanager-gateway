@@ -1,0 +1,263 @@
+# Multi-Destination Routing Example
+# This configuration demonstrates routing alerts to different destinations based on severity and other criteria
+
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  auth:
+    enabled: true
+    username: "${AUTH_USERNAME}"
+    password: "${AUTH_PASSWORD}"
+    api_username: "${API_USERNAME}"
+    api_password: "${API_PASSWORD}"
+
+destinations:
+  # Critical alerts go to PagerDuty for immediate attention
+  - name: "critical-pagerduty"
+    url: "https://events.pagerduty.com/v2/enqueue"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      # Only process critical alerts
+      if .commonLabels.severity == "critical" then
+        {
+          routing_key: $PAGERDUTY_CRITICAL_KEY,
+          event_action: (if .status == "firing" then "trigger" else "resolve" end),
+          dedup_key: .groupKey,
+          payload: {
+            summary: "CRITICAL: " + .groupLabels.alertname,
+            severity: "critical",
+            source: .externalURL,
+            custom_details: {
+              environment: (.commonLabels.env // "production"),
+              service: (.commonLabels.service // "unknown"),
+              alert_count: (.alerts | length),
+              description: .commonAnnotations.summary
+            }
+          }
+        }
+      else empty end
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/vnd.pagerduty+json;version=2"
+    enabled: true
+    retry:
+      max_attempts: 5
+      backoff: exponential
+      initial_delay: 1s
+      max_delay: 30s
+    circuit_breaker:
+      failure_threshold: 3
+      success_threshold: 2
+      timeout: 60s
+
+  # Warning alerts go to Slack for team visibility
+  - name: "warning-slack"
+    url: "${SLACK_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      # Only process warning and info alerts
+      if .commonLabels.severity != "critical" then
+        {
+          text: (
+            (if .status == "firing" then "⚠️" else "✅" end) + " " +
+            .groupLabels.alertname + " [" + (.commonLabels.severity // "info") + "]"
+          ),
+          attachments: [{
+            color: (
+              if .status == "resolved" then "good"
+              elif .commonLabels.severity == "warning" then "warning"
+              else "#439FE0" end
+            ),
+            title: .commonAnnotations.summary,
+            text: (.alerts | length | tostring) + " alert(s) " + .status,
+            fields: [
+              {
+                title: "Environment",
+                value: (.commonLabels.env // "production"),
+                short: true
+              },
+              {
+                title: "Service",
+                value: (.commonLabels.service // "unknown"),
+                short: true
+              }
+            ],
+            footer: "Alertmanager",
+            ts: now
+          }]
+        }
+      else empty end
+    enabled: true
+    retry:
+      max_attempts: 3
+      backoff: linear
+      initial_delay: 2s
+
+  # All alerts go to logging system for audit trail
+  - name: "audit-log"
+    url: "${LOG_AGGREGATOR_URL}/v1/logs"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      {
+        timestamp: now | todateiso8601,
+        log_type: "alert_audit",
+        severity: (.commonLabels.severity // "info"),
+        alert_name: .groupLabels.alertname,
+        status: .status,
+        environment: (.commonLabels.env // "production"),
+        service: (.commonLabels.service // "unknown"),
+        alert_count: (.alerts | length),
+        group_key: .groupKey,
+        labels: .commonLabels,
+        annotations: .commonAnnotations,
+        alerts: [.alerts[] | {
+          fingerprint: .fingerprint,
+          instance: .labels.instance,
+          status: .status,
+          starts_at: .startsAt,
+          ends_at: .endsAt
+        }]
+      }
+    headers:
+      Authorization: "Bearer ${LOG_API_TOKEN}"
+      X-Log-Source: "alertmanager-gateway"
+    enabled: true
+    retry:
+      max_attempts: 10
+      backoff: exponential
+      initial_delay: 500ms
+      max_delay: 60s
+
+  # Production database alerts go to DBA team
+  - name: "database-team"
+    url: "${DBA_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      # Only send database-related alerts from production
+      if (.commonLabels.env == "production" or .commonLabels.env == "prod") and 
+         (.commonLabels.service | test("database|mysql|postgres|mongodb|redis"; "i")) then
+        {
+          alert_type: "database",
+          severity: .commonLabels.severity,
+          status: .status,
+          database_type: .commonLabels.service,
+          cluster: (.commonLabels.cluster // "unknown"),
+          summary: .commonAnnotations.summary,
+          alerts: [.alerts[] | {
+            instance: .labels.instance,
+            status: .status,
+            description: .annotations.description
+          }]
+        }
+      else empty end
+    headers:
+      X-Team-Route: "database"
+      X-Priority: "{{if eq (index .CommonLabels "severity") "critical"}}P1{{else}}P2{{end}}"
+    enabled: true
+
+  # Business hours alerts go to Teams
+  - name: "business-hours-teams"
+    url: "${TEAMS_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "go-template"
+    template: |
+      {{$hour := now | date "15"}}
+      {{$weekday := now | date "Monday"}}
+      {{$isBusinessHours := false}}
+      {{if and (ne $weekday "Saturday") (ne $weekday "Sunday")}}
+        {{if and (ge $hour "09") (lt $hour "18")}}
+          {{$isBusinessHours = true}}
+        {{end}}
+      {{end}}
+      {{if $isBusinessHours}}
+      {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "themeColor": "{{if eq .Status "firing"}}FF0000{{else}}00FF00{{end}}",
+        "summary": "{{.GroupLabels.alertname}} - Business Hours Alert",
+        "sections": [{
+          "activityTitle": "{{.GroupLabels.alertname}}",
+          "facts": [
+            {
+              "name": "Status",
+              "value": "{{.Status}}"
+            },
+            {
+              "name": "Alert Count",
+              "value": "{{len .Alerts}}"
+            },
+            {
+              "name": "Time",
+              "value": "{{now | date "15:04 MST"}}"
+            }
+          ]
+        }]
+      }
+      {{else}}
+      null
+      {{end}}
+    enabled: true
+
+  # Development environment alerts (lower priority)
+  - name: "dev-notifications"
+    url: "${DEV_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      # Only send non-production alerts
+      if .commonLabels.env != "production" and .commonLabels.env != "prod" then
+        {
+          environment: .commonLabels.env,
+          alert: .groupLabels.alertname,
+          severity: .commonLabels.severity,
+          status: .status,
+          summary: .commonAnnotations.summary,
+          instance_count: (.alerts | length)
+        }
+      else empty end
+    enabled: true
+    retry:
+      max_attempts: 2
+      backoff: constant
+      initial_delay: 5s
+
+  # Long-duration alerts escalation
+  - name: "escalation-webhook"
+    url: "${ESCALATION_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      # Escalate alerts that have been firing for more than 1 hour
+      {
+        escalated_alerts: [
+          .alerts[] | 
+          select(.status == "firing") |
+          select((now - (.startsAt | fromdateiso8601)) > 3600) |
+          {
+            fingerprint: .fingerprint,
+            alertname: .labels.alertname,
+            instance: .labels.instance,
+            duration_hours: ((now - (.startsAt | fromdateiso8601)) / 3600 | floor),
+            severity: .labels.severity,
+            summary: .annotations.summary
+          }
+        ]
+      } | 
+      # Only send if there are alerts to escalate
+      if (.escalated_alerts | length) > 0 then . else empty end
+    headers:
+      X-Escalation-Type: "long-duration"
+      X-Threshold-Hours: "1"
+    enabled: true

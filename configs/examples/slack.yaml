@@ -1,0 +1,89 @@
+# Slack Integration Example
+# This configuration sends alerts to Slack with rich formatting
+
+server:
+  port: 8080
+  auth:
+    enabled: true
+    username: "alertmanager"
+    password: "${GATEWAY_PASSWORD}"
+
+destinations:
+  - name: "slack"
+    url: "${SLACK_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "go-template"
+    template: |
+      {
+        "username": "Alertmanager",
+        "icon_emoji": ":warning:",
+        "text": "{{if eq .Status "firing"}}🚨 ALERT{{else}}✅ RESOLVED{{end}}: {{.GroupLabels.alertname}}",
+        "attachments": [
+          {
+            "color": "{{if eq .Status "firing"}}{{if eq (index .CommonLabels "severity") "critical"}}danger{{else if eq (index .CommonLabels "severity") "warning"}}warning{{else}}#439FE0{{end}}{{else}}good{{end}}",
+            "title": "{{.GroupLabels.alertname}}",
+            "title_link": "{{.ExternalURL}}",
+            "text": "{{.CommonAnnotations.summary}}",
+            "fields": [
+              {
+                "title": "Severity",
+                "value": "{{index .CommonLabels "severity" | default "unknown"}}",
+                "short": true
+              },
+              {
+                "title": "Status",
+                "value": "{{.Status | title}}",
+                "short": true
+              },
+              {
+                "title": "Alert Count",
+                "value": "{{len .Alerts}}",
+                "short": true
+              },
+              {
+                "title": "Environment",
+                "value": "{{index .CommonLabels "env" | default "production"}}",
+                "short": true
+              }
+            ],
+            "footer": "Prometheus Alertmanager",
+            "footer_icon": "https://prometheus.io/assets/prometheus_logo_grey.svg",
+            "ts": {{now | unixtime}}
+          },
+          {{range .Alerts}}
+          {
+            "color": "{{if eq .Status "firing"}}danger{{else}}good{{end}}",
+            "title": "Instance: {{.Labels.instance | default "unknown"}}",
+            "text": "{{.Annotations.description | default "No description available"}}",
+            "fields": [
+              {{if .Labels.job}}
+              {
+                "title": "Job",
+                "value": "{{.Labels.job}}",
+                "short": true
+              },
+              {{end}}
+              {
+                "title": "Started",
+                "value": "{{.StartsAt | timeformat "15:04:05 MST"}}",
+                "short": true
+              }
+              {{if ne .Status "firing"}},
+              {
+                "title": "Ended",
+                "value": "{{.EndsAt | timeformat "15:04:05 MST"}}",
+                "short": true
+              }
+              {{end}}
+            ]
+          }{{if not (last $.Alerts .)}}},{{end}}
+          {{end}}
+        ]
+      }
+    enabled: true
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      initial_delay: 1s
+      max_delay: 30s

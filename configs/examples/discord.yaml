@@ -1,0 +1,109 @@
+# Discord Integration Example
+# This configuration sends alerts to Discord using webhooks
+
+server:
+  port: 8080
+  auth:
+    enabled: true
+    username: "alertmanager"
+    password: "${GATEWAY_PASSWORD}"
+
+destinations:
+  - name: "discord"
+    url: "${DISCORD_WEBHOOK_URL}"
+    method: "POST"
+    format: "json"
+    engine: "go-template"
+    template: |
+      {
+        "username": "Prometheus Alertmanager",
+        "avatar_url": "https://prometheus.io/assets/prometheus_logo_grey.svg",
+        "content": "{{if eq .Status "firing"}}@here Alert firing!{{end}}",
+        "embeds": [
+          {
+            "title": "{{if eq .Status "firing"}}🚨{{else}}✅{{end}} {{.GroupLabels.alertname}}",
+            "description": "{{.CommonAnnotations.summary | default "Alert triggered"}}",
+            "url": "{{.ExternalURL}}",
+            "color": {{if eq .Status "firing"}}{{if eq (index .CommonLabels "severity") "critical"}}15158332{{else if eq (index .CommonLabels "severity") "warning"}}16776960{{else}}4436991{{end}}{{else}}3066993{{end}},
+            "fields": [
+              {
+                "name": "Status",
+                "value": "{{.Status | title}}",
+                "inline": true
+              },
+              {
+                "name": "Severity",
+                "value": "{{index .CommonLabels "severity" | default "unknown" | title}}",
+                "inline": true
+              },
+              {
+                "name": "Alert Count",
+                "value": "{{len .Alerts}}",
+                "inline": true
+              },
+              {
+                "name": "Environment",
+                "value": "{{index .CommonLabels "env" | default "production"}}",
+                "inline": true
+              },
+              {
+                "name": "Service",
+                "value": "{{index .CommonLabels "service" | default "unknown"}}",
+                "inline": true
+              },
+              {
+                "name": "Region",
+                "value": "{{index .CommonLabels "region" | default "unknown"}}",
+                "inline": true
+              }
+            ],
+            "timestamp": "{{now | date "2006-01-02T15:04:05.000Z"}}",
+            "footer": {
+              "text": "Prometheus Alertmanager Gateway",
+              "icon_url": "https://prometheus.io/assets/favicons/favicon-16x16.png"
+            }
+          },
+          {{range $i, $alert := .Alerts}}
+          {{if lt $i 5}}
+          {{if $i}},{{end}}
+          {
+            "title": "Instance: {{$alert.Labels.instance | default "unknown"}}",
+            "description": "{{$alert.Annotations.description | default "No description"}}",
+            "color": {{if eq $alert.Status "firing"}}15158332{{else}}3066993{{end}},
+            "fields": [
+              {
+                "name": "Job",
+                "value": "{{$alert.Labels.job | default "unknown"}}",
+                "inline": true
+              },
+              {
+                "name": "Started At",
+                "value": "{{$alert.StartsAt | timeformat "15:04:05 MST"}}",
+                "inline": true
+              }
+              {{if ne $alert.Status "firing"}},
+              {
+                "name": "Resolved At",
+                "value": "{{$alert.EndsAt | timeformat "15:04:05 MST"}}",
+                "inline": true
+              }
+              {{end}}
+            ]
+          }
+          {{end}}
+          {{end}}
+          {{if gt (len .Alerts) 5}},
+          {
+            "title": "Additional Alerts",
+            "description": "And {{sub (len .Alerts) 5}} more alerts...",
+            "color": 16119260
+          }
+          {{end}}
+        ]
+      }
+    enabled: true
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      initial_delay: 1s
+      max_delay: 30s

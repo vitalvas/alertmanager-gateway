@@ -12,7 +12,7 @@ import (
 
 // Config represents the main configuration structure
 type Config struct {
-	Server       ServerConfig       `yaml:"server"`
+	Server       ServerConfig        `yaml:"server"`
 	Destinations []DestinationConfig `yaml:"destinations"`
 }
 
@@ -37,7 +37,6 @@ type AuthConfig struct {
 // DestinationConfig represents a single destination configuration
 type DestinationConfig struct {
 	Name             string            `yaml:"name"`
-	Path             string            `yaml:"path"`
 	Method           string            `yaml:"method"`
 	URL              string            `yaml:"url"`
 	Headers          map[string]string `yaml:"headers"`
@@ -90,7 +89,7 @@ func LoadConfig(path string) (*Config, error) {
 func expandEnvVars(input string) string {
 	// Pattern to match ${VAR} or $VAR
 	re := regexp.MustCompile(`\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)`)
-	
+
 	return re.ReplaceAllStringFunc(input, func(match string) string {
 		// Remove ${ } or $ from the match
 		varName := match
@@ -99,15 +98,15 @@ func expandEnvVars(input string) string {
 		} else if strings.HasPrefix(match, "$") {
 			varName = match[1:]
 		}
-		
+
 		// Support default values with ${VAR:-default}
 		parts := strings.SplitN(varName, ":-", 2)
 		envValue := os.Getenv(parts[0])
-		
+
 		if envValue == "" && len(parts) > 1 {
 			return parts[1]
 		}
-		
+
 		return envValue
 	})
 }
@@ -129,22 +128,22 @@ func (c *Config) setDefaults() {
 
 	for i := range c.Destinations {
 		dest := &c.Destinations[i]
-		
+
 		// Default to enabled
 		if !dest.Enabled && dest.Name != "" {
 			dest.Enabled = true
 		}
-		
+
 		// Default HTTP method
 		if dest.Method == "" {
 			dest.Method = "POST"
 		}
-		
+
 		// Default format
 		if dest.Format == "" {
 			dest.Format = "json"
 		}
-		
+
 		// Default engine
 		if dest.Engine == "" {
 			if dest.Transform != "" {
@@ -153,17 +152,17 @@ func (c *Config) setDefaults() {
 				dest.Engine = "go-template"
 			}
 		}
-		
+
 		// Default batch size for split alerts
 		if dest.SplitAlerts && dest.BatchSize == 0 {
 			dest.BatchSize = 1
 		}
-		
+
 		// Default parallel requests
 		if dest.ParallelRequests == 0 {
 			dest.ParallelRequests = 1
 		}
-		
+
 		// Default retry config
 		if dest.Retry.MaxAttempts == 0 {
 			dest.Retry.MaxAttempts = 3
@@ -193,30 +192,21 @@ func (c *Config) Validate() error {
 	}
 
 	destNames := make(map[string]bool)
-	destPaths := make(map[string]bool)
 
 	for i, dest := range c.Destinations {
 		if dest.Name == "" {
 			return fmt.Errorf("destination %d: name is required", i)
 		}
-		
+
+		// Validate name format (alphanumeric, dash, underscore)
+		if !isValidDestinationName(dest.Name) {
+			return fmt.Errorf("destination %s: invalid name format (use alphanumeric, dash, or underscore)", dest.Name)
+		}
+
 		if destNames[dest.Name] {
 			return fmt.Errorf("duplicate destination name: %s", dest.Name)
 		}
 		destNames[dest.Name] = true
-
-		if dest.Path == "" {
-			return fmt.Errorf("destination %s: path is required", dest.Name)
-		}
-		
-		if !strings.HasPrefix(dest.Path, "/") {
-			return fmt.Errorf("destination %s: path must start with /", dest.Name)
-		}
-		
-		if destPaths[dest.Path] {
-			return fmt.Errorf("duplicate destination path: %s", dest.Path)
-		}
-		destPaths[dest.Path] = true
 
 		if dest.URL == "" {
 			return fmt.Errorf("destination %s: url is required", dest.Name)
@@ -255,17 +245,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// GetDestinationByPath returns a destination configuration by path
-func (c *Config) GetDestinationByPath(path string) *DestinationConfig {
-	for i := range c.Destinations {
-		if c.Destinations[i].Path == path && c.Destinations[i].Enabled {
-			return &c.Destinations[i]
-		}
-	}
-	return nil
-}
-
-// GetDestinationByName returns a destination configuration by name
+// GetDestinationByName returns a destination configuration by name (only enabled destinations)
 func (c *Config) GetDestinationByName(name string) *DestinationConfig {
 	for i := range c.Destinations {
 		if c.Destinations[i].Name == name && c.Destinations[i].Enabled {
@@ -273,4 +253,27 @@ func (c *Config) GetDestinationByName(name string) *DestinationConfig {
 		}
 	}
 	return nil
+}
+
+// GetDestinationByNameAny returns a destination configuration by name regardless of enabled status
+func (c *Config) GetDestinationByNameAny(name string) *DestinationConfig {
+	for i := range c.Destinations {
+		if c.Destinations[i].Name == name {
+			return &c.Destinations[i]
+		}
+	}
+	return nil
+}
+
+// isValidDestinationName checks if a destination name is valid
+func isValidDestinationName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' {
+			return false
+		}
+	}
+	return true
 }

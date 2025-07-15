@@ -11,9 +11,8 @@ server:
     password: "${GATEWAY_PASSWORD}"
 
 destinations:
-  # Flock Chat example
+  # Flock Chat example (webhook URL: /webhook/flock)
   - name: "flock"
-    path: "/webhook/flock"
     method: "POST"
     url: "https://api.flock.com/hooks/sendMessage/${FLOCK_WEBHOOK_ID}"
     format: "json"
@@ -38,9 +37,8 @@ destinations:
         }]
       }
 
-  # Jenkins webhook example
+  # Jenkins webhook example (webhook URL: /webhook/jenkins)
   - name: "jenkins"
-    path: "/webhook/jenkins"
     method: "POST"
     url: "${JENKINS_URL}/generic-webhook-trigger/invoke"
     format: "json"
@@ -58,9 +56,8 @@ destinations:
         alertCount: (.alerts | length)
       }
 
-  # Example with split alerts for ticketing system
+  # Example with split alerts for ticketing system (webhook URL: /webhook/tickets)
   - name: "tickets"
-    path: "/webhook/tickets"
     method: "POST"
     url: "${TICKET_API_URL}/api/v1/tickets"
     format: "json"
@@ -87,9 +84,8 @@ destinations:
         }
       }
 
-  # Example with form-encoded output
+  # Example with form-encoded output (webhook URL: /webhook/legacy-system)
   - name: "legacy-system"
-    path: "/webhook/legacy"
     method: "POST"
     url: "${LEGACY_SYSTEM_URL}/alert"
     format: "form"
@@ -102,9 +98,8 @@ destinations:
       message={{ .CommonAnnotations.summary }}
       timestamp={{ now | unixtime }}
 
-  # Example with query parameters
+  # Example with query parameters (webhook URL: /webhook/monitoring-api)
   - name: "monitoring-api"
-    path: "/webhook/monitor"
     method: "GET"
     url: "${MONITOR_API_URL}/api/alert"
     format: "query"

@@ -1,0 +1,91 @@
+# PagerDuty Integration Example
+# This configuration sends alerts to PagerDuty Events API v2
+
+server:
+  port: 8080
+  auth:
+    enabled: true
+    username: "alertmanager"
+    password: "${GATEWAY_PASSWORD}"
+
+destinations:
+  - name: "pagerduty"
+    url: "https://events.pagerduty.com/v2/enqueue"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      {
+        routing_key: $PAGERDUTY_ROUTING_KEY,
+        event_action: (
+          if .status == "firing" then "trigger"
+          elif .status == "resolved" then "resolve"
+          else "acknowledge" end
+        ),
+        dedup_key: .groupKey,
+        payload: {
+          summary: (
+            .groupLabels.alertname + " - " + 
+            (.commonAnnotations.summary // "No summary available")
+          ),
+          severity: (
+            if .commonLabels.severity == "critical" then "critical"
+            elif .commonLabels.severity == "warning" then "warning"
+            elif .commonLabels.severity == "info" then "info"
+            else "error" end
+          ),
+          source: (.commonLabels.instance // .externalURL),
+          component: (.commonLabels.service // "unknown"),
+          group: (.commonLabels.env // "production"),
+          class: .groupLabels.alertname,
+          custom_details: {
+            firing_alerts: (.alerts | map(select(.status == "firing")) | length),
+            resolved_alerts: (.alerts | map(select(.status == "resolved")) | length),
+            total_alerts: (.alerts | length),
+            environment: (.commonLabels.env // "unknown"),
+            region: (.commonLabels.region // "unknown"),
+            alerts: [
+              .alerts[] | {
+                fingerprint: .fingerprint,
+                status: .status,
+                instance: (.labels.instance // "unknown"),
+                summary: (.annotations.summary // ""),
+                description: (.annotations.description // ""),
+                starts_at: .startsAt,
+                ends_at: (if .endsAt then .endsAt else null end),
+                labels: .labels,
+                annotations: .annotations
+              }
+            ],
+            group_labels: .groupLabels,
+            common_labels: .commonLabels,
+            external_url: .externalURL
+          }
+        },
+        links: [
+          {
+            href: .externalURL,
+            text: "View in Alertmanager"
+          }
+        ] + if .commonAnnotations.runbook_url then [{
+          href: .commonAnnotations.runbook_url,
+          text: "Runbook"
+        }] else [] end + if .commonAnnotations.dashboard_url then [{
+          href: .commonAnnotations.dashboard_url,
+          text: "Dashboard"
+        }] else [] end
+      }
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/vnd.pagerduty+json;version=2"
+    enabled: true
+    retry:
+      max_attempts: 5
+      backoff: exponential
+      initial_delay: 1s
+      max_delay: 60s
+    circuit_breaker:
+      failure_threshold: 5
+      success_threshold: 2
+      timeout: 30s
+      half_open_requests: 3

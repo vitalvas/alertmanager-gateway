@@ -1,0 +1,100 @@
+# Telegram Bot Integration Example
+# This configuration sends alerts to Telegram using Bot API
+
+server:
+  port: 8080
+  auth:
+    enabled: true
+    username: "alertmanager"
+    password: "${GATEWAY_PASSWORD}"
+
+destinations:
+  - name: "telegram"
+    url: "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      {
+        chat_id: $TELEGRAM_CHAT_ID,
+        text: (
+          (if .status == "firing" then "🚨 *ALERT FIRING*" else "✅ *ALERT RESOLVED*" end) + "\n\n" +
+          "*Alert:* " + .groupLabels.alertname + "\n" +
+          "*Severity:* " + (.commonLabels.severity // "unknown") + "\n" +
+          "*Status:* " + .status + "\n" +
+          "*Environment:* " + (.commonLabels.env // "production") + "\n\n" +
+          "*Summary:*\n" + (.commonAnnotations.summary // "No summary available") + "\n\n" +
+          "*Affected Instances:*\n" +
+          (.alerts | map(
+            "• `" + (.labels.instance // "unknown") + "` - " + .status + 
+            (if .status == "resolved" then 
+              " (lasted " + (
+                ((.endsAt | fromdateiso8601) - (.startsAt | fromdateiso8601)) | 
+                tostring | split(".")[0]
+              ) + "s)"
+            else "" end)
+          ) | join("\n")) + "\n\n" +
+          (if .commonAnnotations.runbook_url then 
+            "[📚 Runbook](" + .commonAnnotations.runbook_url + ") | " 
+          else "" end) +
+          "[🔍 View in Alertmanager](" + .externalURL + ")"
+        ),
+        parse_mode: "Markdown",
+        disable_web_page_preview: true,
+        reply_markup: (
+          if .status == "firing" and .commonLabels.severity == "critical" then {
+            inline_keyboard: [[
+              {
+                text: "🔕 Silence for 1h",
+                url: (.externalURL + "/#/silences/new?filter=" + 
+                     (.groupLabels | to_entries | map(.key + "%3D%22" + .value + "%22") | join("%2C")))
+              }
+            ]] + (
+              if .commonAnnotations.runbook_url then [[{
+                text: "📚 View Runbook",
+                url: .commonAnnotations.runbook_url
+              }]] else [] end
+            ) + (
+              if .commonAnnotations.dashboard_url then [[{
+                text: "📊 View Dashboard",
+                url: .commonAnnotations.dashboard_url
+              }]] else [] end
+            )
+          } else null end
+        )
+      }
+    enabled: true
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      initial_delay: 1s
+      max_delay: 30s
+
+  # Alternative: Split alerts to send individual messages
+  - name: "telegram-split"
+    url: "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+    method: "POST"
+    format: "json"
+    engine: "jq"
+    transform: |
+      {
+        chat_id: $TELEGRAM_CHAT_ID,
+        text: (
+          (if .alert.status == "firing" then "🚨" else "✅" end) + " " +
+          .alert.labels.alertname + "\n\n" +
+          "*Instance:* `" + (.alert.labels.instance // "unknown") + "`\n" +
+          "*Severity:* " + (.alert.labels.severity // "unknown") + "\n" +
+          "*Status:* " + .alert.status + "\n\n" +
+          (.alert.annotations.description // .alert.annotations.summary // "No description") + "\n\n" +
+          "*Started:* " + (.alert.startsAt | strftime("%Y-%m-%d %H:%M:%S UTC")) +
+          (if .alert.status == "resolved" then 
+            "\n*Resolved:* " + (.alert.endsAt | strftime("%Y-%m-%d %H:%M:%S UTC"))
+          else "" end)
+        ),
+        parse_mode: "Markdown",
+        disable_notification: (.alert.labels.severity != "critical")
+      }
+    enabled: false
+    split_alerts: true
+    batch_size: 1
+    parallel_requests: 3
