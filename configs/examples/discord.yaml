@@ -3,14 +3,10 @@
 
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   - name: "discord"
-    url: "${DISCORD_WEBHOOK_URL}"
+    url: "${env:DISCORD_WEBHOOK_URL}"
     method: "POST"
     format: "json"
     engine: "go-template"

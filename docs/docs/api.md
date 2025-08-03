@@ -200,7 +200,6 @@ Lists all configured destinations.
 
 **Response Codes:**
 - `200 OK`: Success
-- `401 Unauthorized`: Missing or invalid authentication
 - `500 Internal Server Error`: Server error
 
 **Response Body:**
@@ -246,7 +245,6 @@ Get detailed information about a specific destination.
 
 **Response Codes:**
 - `200 OK`: Success
-- `401 Unauthorized`: Missing or invalid authentication
 - `404 Not Found`: Destination not found
 - `500 Internal Server Error`: Server error
 
@@ -561,7 +559,6 @@ Get system information about the gateway.
     "destinations_total": 5,
     "destinations_enabled": 4,
     "destinations_disabled": 1,
-    "auth_enabled": true,
     "metrics_enabled": true,
     "config_path": "/etc/alertmanager-gateway/config.yaml",
     "log_level": "info"
@@ -685,7 +682,6 @@ Configuration in YAML or JSON format
   "message": "Configuration is valid",
   "summary": {
     "destinations": 3,
-    "auth_enabled": true,
     "warnings": [
       "Destination 'webhook' has no retry configuration",
       "Consider enabling metrics for production use"
@@ -722,72 +718,6 @@ Configuration in YAML or JSON format
 ```
 
 
-## Authentication
-
-### Server Authentication
-
-When basic authentication is enabled in the server configuration, all endpoints require authentication:
-
-```yaml
-# config.yaml
-server:
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "secretpassword"
-```
-
-All requests must include the Authorization header:
-```
-Authorization: Basic <base64(username:password)>
-```
-
-Example:
-```bash
-# Create base64 encoded credentials
-echo -n "alertmanager:secretpassword" | base64
-# Result: YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk
-
-# Use in requests
-curl -X POST http://localhost:8080/webhook/slack \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
-  -H "Content-Type: application/json" \
-  -d @alert.json
-```
-
-### Alertmanager Configuration
-
-Configure Alertmanager to use basic auth:
-
-```yaml
-receivers:
-  - name: 'gateway'
-    webhook_configs:
-      - url: 'http://localhost:8080/webhook/slack'
-        http_config:
-          basic_auth:
-            username: 'alertmanager'
-            password: 'secretpassword'
-```
-
-### Rate Limiting
-
-The gateway includes built-in rate limiting for authentication failures:
-
-- **Failed attempts limit**: 5 attempts per minute per IP address
-- **Ban duration**: 15 minutes after exceeding the limit
-- **Headers**: `Retry-After` header is set when rate limited
-- **Response**: HTTP 429 Too Many Requests when rate limited
-
-Example rate limit response:
-```json
-{
-  "status": "error",
-  "error": "Too many authentication failures",
-  "retry_after": 900,
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
 
 ## Error Handling
 
@@ -809,7 +739,6 @@ All errors follow a consistent format:
 
 ```bash
 curl -X POST http://localhost:8080/webhook/slack \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
   -H "Content-Type: application/json" \
   -d '{
     "version": "4",
@@ -853,15 +782,13 @@ curl http://localhost:8080/health
 ### List Destinations
 
 ```bash
-curl http://localhost:8080/api/v1/destinations \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+curl http://localhost:8080/api/v1/destinations
 ```
 
 ### Test Transformation
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/test/slack \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
   -H "Content-Type: application/json" \
   -d '{
     "version": "4",
@@ -898,15 +825,13 @@ curl -X POST http://localhost:8080/api/v1/test/slack \
 ### Get Destination Details
 
 ```bash
-curl http://localhost:8080/api/v1/destinations/slack \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+curl http://localhost:8080/api/v1/destinations/slack
 ```
 
 ### Emulate Request (Dry Run)
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/emulate/pagerduty?dry_run=true \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
   -H "Content-Type: application/json" \
   -d '{
     "version": "4",
@@ -928,30 +853,23 @@ curl -X POST http://localhost:8080/api/v1/emulate/pagerduty?dry_run=true \
 ### Get System Info
 
 ```bash
-curl http://localhost:8080/api/v1/info \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+curl http://localhost:8080/api/v1/info
 ```
 
 ### Get Detailed Health
 
 ```bash
-curl http://localhost:8080/api/v1/health?verbose=true \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk"
+curl http://localhost:8080/api/v1/health?verbose=true
 ```
 
 ### Validate Configuration
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/config/validate \
-  -H "Authorization: Basic YWxlcnRtYW5hZ2VyOnNlY3JldHBhc3N3b3Jk" \
   -H "Content-Type: application/yaml" \
   -d '
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: alertmanager
-    password: secretpassword
 
 destinations:
   - name: test-webhook

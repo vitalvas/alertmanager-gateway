@@ -11,11 +11,19 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	// Create a temporary config file
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.yaml")
-
-	configContent := `
+	tests := []struct {
+		name              string
+		configContent     string
+		envVars           map[string]string
+		expectedHost      string
+		expectedPort      int
+		expectedPassword  string
+		expectedURL       string
+		additionalChecks  func(t *testing.T, cfg *Config)
+	}{
+		{
+			name: "basic configuration",
+			configContent: `
 server:
   host: "127.0.0.1"
   port: 8090
@@ -36,85 +44,99 @@ destinations:
       {
         message: .message
       }
-`
-
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
-	require.NoError(t, err)
-
-	// Load config
-	cfg, err := LoadConfig(configPath)
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-
-	// Verify server config
-	assert.Equal(t, "127.0.0.1", cfg.Server.Host)
-	assert.Equal(t, 8090, cfg.Server.Port)
-	assert.Equal(t, 45*time.Second, cfg.Server.ReadTimeout)
-	assert.Equal(t, 45*time.Second, cfg.Server.WriteTimeout)
-	assert.True(t, cfg.Server.Auth.Enabled)
-	assert.Equal(t, "test", cfg.Server.Auth.Username)
-	assert.Equal(t, "secret", cfg.Server.Auth.Password)
-
-	// Verify destination config
-	require.Len(t, cfg.Destinations, 1)
-	dest := cfg.Destinations[0]
-	assert.Equal(t, "test-dest", dest.Name)
-	assert.Equal(t, "POST", dest.Method)
-	assert.Equal(t, "https://example.com/webhook", dest.URL)
-	assert.Equal(t, "json", dest.Format)
-	assert.Equal(t, "jq", dest.Engine)
-	assert.Contains(t, dest.Transform, "message: .message")
-	assert.True(t, dest.Enabled)
-}
-
-func TestLoadConfigWithEnvVars(t *testing.T) {
-	// Set environment variables
-	os.Setenv("TEST_HOST", "192.168.1.1")
-	os.Setenv("TEST_PORT", "9090")
-	os.Setenv("TEST_PASSWORD", "env-secret")
-	os.Setenv("WEBHOOK_URL", "https://env.example.com/hook")
-	defer func() {
-		os.Unsetenv("TEST_HOST")
-		os.Unsetenv("TEST_PORT")
-		os.Unsetenv("TEST_PASSWORD")
-		os.Unsetenv("WEBHOOK_URL")
-	}()
-
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.yaml")
-
-	configContent := `
+`,
+			expectedHost:     "127.0.0.1",
+			expectedPort:     8090,
+			expectedPassword: "secret",
+			expectedURL:      "https://example.com/webhook",
+			additionalChecks: func(t *testing.T, cfg *Config) {
+				assert.Equal(t, 45*time.Second, cfg.Server.ReadTimeout)
+				assert.Equal(t, 45*time.Second, cfg.Server.WriteTimeout)
+				assert.True(t, cfg.Server.Auth.Enabled)
+				assert.Equal(t, "test", cfg.Server.Auth.Username)
+				
+				require.Len(t, cfg.Destinations, 1)
+				dest := cfg.Destinations[0]
+				assert.Equal(t, "test-dest", dest.Name)
+				assert.Equal(t, "POST", dest.Method)
+				assert.Equal(t, "json", dest.Format)
+				assert.Equal(t, "jq", dest.Engine)
+				assert.Contains(t, dest.Transform, "message: .message")
+				assert.True(t, dest.Enabled)
+			},
+		},
+		{
+			name: "with environment variables",
+			configContent: `
 server:
-  host: "${TEST_HOST}"
-  port: ${TEST_PORT}
+  host: "localhost"  # Will be overridden by env var
+  port: 8080         # Will be overridden by env var
   auth:
     enabled: true
     username: "admin"
-    password: "$TEST_PASSWORD"
+    password: "default-pass"  # Will be overridden by env var
 
 destinations:
   - name: "env-test"
-    url: "${WEBHOOK_URL}"
+    url: "https://example.com/hook"
     format: "json"
     template: '{"test": "data"}'
-    headers:
-      Authorization: "Bearer ${API_TOKEN:-default-token}"
-`
+`,
+			envVars: map[string]string{
+				"GATEWAY_SERVER_HOST":          "192.168.1.1",
+				"GATEWAY_SERVER_PORT":          "9090",
+				"GATEWAY_SERVER_AUTH_PASSWORD": "env-secret",
+			},
+			expectedHost:     "192.168.1.1",
+			expectedPort:     9090,
+			expectedPassword: "env-secret",
+			expectedURL:      "https://example.com/hook",
+			additionalChecks: func(t *testing.T, cfg *Config) {
+				require.Len(t, cfg.Destinations, 1)
+				assert.Equal(t, "env-test", cfg.Destinations[0].Name)
+			},
+		},
+	}
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables if provided
+			for key, value := range tt.envVars {
+				os.Setenv(key, value)
+			}
+			defer func() {
+				for key := range tt.envVars {
+					os.Unsetenv(key)
+				}
+			}()
 
-	cfg, err := LoadConfig(configPath)
-	require.NoError(t, err)
+			// Create temporary config file
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.yaml")
 
-	assert.Equal(t, "192.168.1.1", cfg.Server.Host)
-	assert.Equal(t, 9090, cfg.Server.Port)
-	assert.Equal(t, "env-secret", cfg.Server.Auth.Password)
-	assert.Equal(t, "https://env.example.com/hook", cfg.Destinations[0].URL)
-	assert.Equal(t, "Bearer default-token", cfg.Destinations[0].Headers["Authorization"])
+			err := os.WriteFile(configPath, []byte(tt.configContent), 0644)
+			require.NoError(t, err)
+
+			// Load config
+			cfg, err := LoadConfig(configPath)
+			require.NoError(t, err)
+			require.NotNil(t, cfg)
+
+			// Common assertions
+			assert.Equal(t, tt.expectedHost, cfg.Server.Host)
+			assert.Equal(t, tt.expectedPort, cfg.Server.Port)
+			assert.Equal(t, tt.expectedPassword, cfg.Server.Auth.Password)
+			assert.Equal(t, tt.expectedURL, cfg.Destinations[0].URL)
+
+			// Additional test-specific checks
+			if tt.additionalChecks != nil {
+				tt.additionalChecks(t, cfg)
+			}
+		})
+	}
 }
 
-func TestConfigDefaults(t *testing.T) {
+func TestConfig_SetDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 
@@ -148,7 +170,7 @@ destinations:
 	assert.Equal(t, "exponential", dest.Retry.Backoff)
 }
 
-func TestConfigValidation(t *testing.T) {
+func TestConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      string
@@ -304,7 +326,7 @@ destinations:
 
 // TestGetDestinationByPath removed - no longer using path field
 
-func TestGetDestinationByName(t *testing.T) {
+func TestConfig_GetDestinationByName(t *testing.T) {
 	cfg := &Config{
 		Destinations: []DestinationConfig{
 			{Name: "dest1", Enabled: true},
@@ -325,33 +347,4 @@ func TestGetDestinationByName(t *testing.T) {
 	// Test disabled destination
 	dest = cfg.GetDestinationByName("dest3")
 	assert.Nil(t, dest)
-}
-
-func TestExpandEnvVars(t *testing.T) {
-	os.Setenv("TEST_VAR", "test-value")
-	os.Setenv("ANOTHER_VAR", "another-value")
-	defer func() {
-		os.Unsetenv("TEST_VAR")
-		os.Unsetenv("ANOTHER_VAR")
-	}()
-
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"${TEST_VAR}", "test-value"},
-		{"$TEST_VAR", "test-value"},
-		{"prefix-${TEST_VAR}-suffix", "prefix-test-value-suffix"},
-		{"${TEST_VAR}/${ANOTHER_VAR}", "test-value/another-value"},
-		{"${UNSET_VAR:-default}", "default"},
-		{"${TEST_VAR:-default}", "test-value"},
-		{"no vars here", "no vars here"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := expandEnvVars(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }

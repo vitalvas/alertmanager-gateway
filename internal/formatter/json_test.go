@@ -151,14 +151,17 @@ func TestJSONFormatter_FormatWithIndent(t *testing.T) {
 	require.NoError(t, json.Unmarshal(result, &m))
 }
 
-func TestJSONFormatter_ContentType(t *testing.T) {
-	formatter := NewJSONFormatter()
-	assert.Equal(t, "application/json", formatter.ContentType())
-}
+func TestJSONFormatter_Properties(t *testing.T) {
+	t.Run("content type", func(t *testing.T) {
+		formatter := NewJSONFormatter()
+		assert.Equal(t, "application/json", formatter.ContentType())
+	})
 
-func TestJSONFormatter_Name(t *testing.T) {
-	formatter := NewJSONFormatter()
-	assert.Equal(t, "json", formatter.Name())
+
+	t.Run("name", func(t *testing.T) {
+		formatter := NewJSONFormatter()
+		assert.Equal(t, "json", formatter.Name())
+	})
 }
 
 func BenchmarkJSONFormatter_Format(b *testing.B) {

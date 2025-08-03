@@ -7,7 +7,7 @@ This guide covers deploying the Alertmanager Gateway in various environments, fr
 ## Prerequisites
 
 - Go 1.21+ (for building from source)
-- Docker (for containerized deployment)
+- Docker (for containerized deployment)  
 - Kubernetes cluster (for Kubernetes deployment)
 - Network access to target notification services
 
@@ -58,7 +58,6 @@ services:
       - ./config.yaml:/config.yaml
       - ./logs:/logs
     environment:
-      - GATEWAY_PASSWORD=your-secure-password
       - GATEWAY_LOG_LEVEL=info
     restart: unless-stopped
     healthcheck:
@@ -77,7 +76,6 @@ docker run -d \
   --name alertmanager-gateway \
   -p 8080:8080 \
   -v $(pwd)/config.yaml:/config.yaml \
-  -e GATEWAY_PASSWORD=your-password \
   alertmanager-gateway:latest
 
 # Run with custom configuration
@@ -113,10 +111,6 @@ data:
     server:
       host: "0.0.0.0"
       port: 8080
-      auth:
-        enabled: true
-        username: "alertmanager"
-        password: "${GATEWAY_PASSWORD}"
     
     destinations:
       - name: "slack"
@@ -143,7 +137,6 @@ metadata:
   namespace: alertmanager-gateway
 type: Opaque
 data:
-  gateway-password: <base64-encoded-password>
   slack-webhook-url: <base64-encoded-slack-url>
 
 ---
@@ -169,11 +162,6 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: GATEWAY_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: gateway-secrets
-              key: gateway-password
         - name: SLACK_WEBHOOK_URL
           valueFrom:
             secretKeyRef:
@@ -259,9 +247,7 @@ spec:
 ### Environment Variables
 
 ```bash
-# Security
-export GATEWAY_PASSWORD="your-secure-password"
-export GATEWAY_API_PASSWORD="admin-password"
+# Security - configure in application config if needed
 
 # Service URLs
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
@@ -284,12 +270,6 @@ server:
   port: 8080
   read_timeout: "30s"
   write_timeout: "30s"
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
-    api_username: "admin"
-    api_password: "${GATEWAY_API_PASSWORD}"
 
 destinations:
   # Critical alerts to PagerDuty
@@ -466,12 +446,11 @@ server {
 ```bash
 # Using Kubernetes secrets
 kubectl create secret generic gateway-secrets \
-  --from-literal=gateway-password=your-password \
   --from-literal=slack-webhook-url=https://... \
   --namespace=alertmanager-gateway
 
-# Using Docker secrets
-echo "your-password" | docker secret create gateway_password -
+# Using Docker secrets for sensitive data
+echo "your-webhook-url" | docker secret create gateway_webhook_url -
 ```
 
 ## Backup and Recovery
@@ -570,8 +549,8 @@ server {
 
 2. **Authentication failures**
    ```bash
-   # Check credentials
-   curl -u username:password http://localhost:8080/health
+   # Check gateway health
+   curl http://localhost:8080/health
    
    # Check rate limiting
    curl http://localhost:8080/api/v1/health

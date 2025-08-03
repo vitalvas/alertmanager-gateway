@@ -3,20 +3,16 @@
 
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   - name: "telegram"
-    url: "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+    url: "https://api.telegram.org/bot${env:TELEGRAM_BOT_TOKEN}/sendMessage"
     method: "POST"
     format: "json"
     engine: "jq"
     transform: |
       {
-        chat_id: $TELEGRAM_CHAT_ID,
+        chat_id: "${env:TELEGRAM_CHAT_ID}",
         text: (
           (if .status == "firing" then "🚨 *ALERT FIRING*" else "✅ *ALERT RESOLVED*" end) + "\n\n" +
           "*Alert:* " + .groupLabels.alertname + "\n" +
@@ -70,31 +66,3 @@ destinations:
       initial_delay: 1s
       max_delay: 30s
 
-  # Alternative: Split alerts to send individual messages
-  - name: "telegram-split"
-    url: "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
-    method: "POST"
-    format: "json"
-    engine: "jq"
-    transform: |
-      {
-        chat_id: $TELEGRAM_CHAT_ID,
-        text: (
-          (if .alert.status == "firing" then "🚨" else "✅" end) + " " +
-          .alert.labels.alertname + "\n\n" +
-          "*Instance:* `" + (.alert.labels.instance // "unknown") + "`\n" +
-          "*Severity:* " + (.alert.labels.severity // "unknown") + "\n" +
-          "*Status:* " + .alert.status + "\n\n" +
-          (.alert.annotations.description // .alert.annotations.summary // "No description") + "\n\n" +
-          "*Started:* " + (.alert.startsAt | strftime("%Y-%m-%d %H:%M:%S UTC")) +
-          (if .alert.status == "resolved" then 
-            "\n*Resolved:* " + (.alert.endsAt | strftime("%Y-%m-%d %H:%M:%S UTC"))
-          else "" end)
-        ),
-        parse_mode: "Markdown",
-        disable_notification: (.alert.labels.severity != "critical")
-      }
-    enabled: false
-    split_alerts: true
-    batch_size: 1
-    parallel_requests: 3

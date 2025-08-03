@@ -255,7 +255,7 @@ destinations:
     transform: |
       if .commonLabels.severity == "critical" then
         {
-          routing_key: $PAGERDUTY_KEY,
+          routing_key: "${env:PAGERDUTY_KEY}",
           event_action: "trigger",
           dedup_key: .groupKey,
           payload: {
@@ -429,10 +429,6 @@ server:
   port: 8080
   read_timeout: 30s
   write_timeout: 30s
-  auth:
-    enabled: true
-    username: "${AUTH_USER}"
-    password: "${AUTH_PASS}"
 
 destinations:
   - name: primary

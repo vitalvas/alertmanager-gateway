@@ -12,12 +12,6 @@ server:
   port: 8080                    # HTTP server port
   read_timeout: 10s             # Maximum duration for reading request
   write_timeout: 10s            # Maximum duration for writing response
-  auth:
-    enabled: false              # Enable basic authentication
-    username: "alertmanager"    # Username for basic auth
-    password: "secretpassword"  # Password for basic auth
-    api_username: "api-user"    # Optional: Different credentials for API
-    api_password: "api-pass"    # Optional: Different API password
 
 # Destination configurations
 destinations:
@@ -103,7 +97,7 @@ destinations:
     engine: jq
     transform: |
       {
-        routing_key: $ROUTING_KEY,
+        routing_key: "${env:ROUTING_KEY}",
         event_action: (if .status == "firing" then "trigger" else "resolve" end),
         dedup_key: .groupKey,
         payload: {
@@ -428,12 +422,6 @@ server:
   port: 8080
   read_timeout: 30s
   write_timeout: 30s
-  auth:
-    enabled: true
-    username: "${AUTH_USERNAME}"
-    password: "${AUTH_PASSWORD}"
-    api_username: "${API_USERNAME}"
-    api_password: "${API_PASSWORD}"
 
 destinations:
   # Primary notification channel with circuit breaker
@@ -498,7 +486,7 @@ destinations:
       # Only send critical alerts
       if (.commonLabels.severity == "critical" and .status == "firing") then
         {
-          routing_key: $PAGERDUTY_ROUTING_KEY,
+          routing_key: "${env:PAGERDUTY_ROUTING_KEY}",
           event_action: "trigger",
           dedup_key: .groupKey,
           payload: {
@@ -556,15 +544,33 @@ destinations:
 
 ## Environment Variables
 
-The configuration supports environment variable substitution using `${VAR_NAME}` syntax:
+The configuration system supports environment variable overrides using the `GATEWAY_` prefix and traditional variable substitution.
+
+### Environment Variable Overrides
+
+Environment variables with the `GATEWAY_` prefix automatically override configuration values:
+
+- `GATEWAY_SERVER_HOST` → `server.host`
+- `GATEWAY_SERVER_PORT` → `server.port`
+
+Example:
+```bash
+# Override server configuration via environment variables
+export GATEWAY_SERVER_HOST=0.0.0.0
+export GATEWAY_SERVER_PORT=9090
+
+# Start the gateway - these values will override config file settings
+./alertmanager-gateway -config config.yaml
+```
+
+### Traditional Variable Substitution
+
+The configuration also supports environment variable substitution using `${VAR_NAME}` syntax:
 
 ```yaml
 # Example with environment variables
 server:
   port: ${PORT:-8080}  # Use PORT env var, default to 8080
-  auth:
-    username: ${AUTH_USER}
-    password: ${AUTH_PASS}
 
 destinations:
   - name: webhook
@@ -578,8 +584,6 @@ Set environment variables:
 
 ```bash
 export PORT=9090
-export AUTH_USER=alertmanager
-export AUTH_PASS=secretpassword
 export WEBHOOK_URL=https://api.example.com/webhook
 export API_TOKEN=your-api-token
 ```
@@ -669,9 +673,8 @@ curl -X POST http://localhost:8080/api/v1/config/validate \
 2. **Enable Retries**: Configure retry logic for production destinations
 3. **Set Circuit Breakers**: Protect against cascading failures
 4. **Split Critical Alerts**: Use separate destinations for critical vs. warning alerts
-5. **Enable Authentication**: Always enable authentication in production
-6. **Monitor the Gateway**: Use the `/metrics` endpoint for monitoring
-7. **Test Transformations**: Use the `/api/v1/test/{destination}` endpoint to test templates
-8. **Log Levels**: Set appropriate log levels for production (info or warn)
-9. **Timeouts**: Configure reasonable timeouts for HTTP requests
-10. **Backup Destinations**: Configure fallback destinations for critical alerts
+5. **Monitor the Gateway**: Use the `/metrics` endpoint for monitoring
+6. **Test Transformations**: Use the `/api/v1/test/{destination}` endpoint to test templates
+7. **Log Levels**: Set appropriate log levels for production (info or warn)
+8. **Timeouts**: Configure reasonable timeouts for HTTP requests
+9. **Backup Destinations**: Configure fallback destinations for critical alerts

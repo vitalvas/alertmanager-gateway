@@ -324,19 +324,18 @@ func TestGoTemplateEngine_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-func TestGoTemplateEngine_Validate(t *testing.T) {
+func TestGoTemplateEngine_Properties(t *testing.T) {
 	engine, err := NewGoTemplateEngine(`{{ .Status }}`)
 	require.NoError(t, err)
 
-	// Validate should always return nil for compiled templates
-	assert.NoError(t, engine.Validate())
-}
+	t.Run("validate", func(t *testing.T) {
+		// Validate should always return nil for compiled templates
+		assert.NoError(t, engine.Validate())
+	})
 
-func TestGoTemplateEngine_Name(t *testing.T) {
-	engine, err := NewGoTemplateEngine(`{{ .Status }}`)
-	require.NoError(t, err)
-
-	assert.Equal(t, "go-template", engine.Name())
+	t.Run("name", func(t *testing.T) {
+		assert.Equal(t, "go-template", engine.Name())
+	})
 }
 
 func BenchmarkGoTemplateEngine_Transform(b *testing.B) {

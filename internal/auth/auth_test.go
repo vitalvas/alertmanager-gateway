@@ -31,7 +31,7 @@ func TestNewAuthenticator(t *testing.T) {
 	assert.NotNil(t, auth.logger)
 }
 
-func TestValidateCredentials(t *testing.T) {
+func TestAuthenticator_ValidateCredentials(t *testing.T) {
 	tests := []struct {
 		name           string
 		config         *config.AuthConfig
@@ -115,7 +115,7 @@ func TestValidateCredentials(t *testing.T) {
 	}
 }
 
-func TestValidateAPICredentials(t *testing.T) {
+func TestAuthenticator_ValidateAPICredentials(t *testing.T) {
 	tests := []struct {
 		name           string
 		config         *config.AuthConfig
@@ -194,140 +194,135 @@ func TestValidateAPICredentials(t *testing.T) {
 	}
 }
 
-func TestBasicAuthMiddleware(t *testing.T) {
-	cfg := &config.AuthConfig{
-		Enabled:  true,
-		Username: "testuser",
-		Password: "testpass",
-	}
-
-	logger := logrus.New()
-	auth := NewAuthenticator(cfg, logger)
-
+func TestAuthMiddleware(t *testing.T) {
 	// Create a simple handler for testing
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("success"))
 	})
 
-	middleware := auth.BasicAuthMiddleware(handler)
-
-	tests := []struct {
-		name           string
-		authHeader     string
-		expectedStatus int
-		expectedBody   string
-	}{
-		{
-			name:           "no auth header",
-			authHeader:     "",
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   `"Basic authentication required"`,
-		},
-		{
-			name:           "invalid auth header format",
-			authHeader:     "Bearer token123",
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   `"Basic authentication required"`,
-		},
-		{
-			name:           "invalid credentials",
-			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("wrong:creds")),
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   `"Invalid credentials"`,
-		},
-		{
-			name:           "valid credentials",
-			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("testuser:testpass")),
-			expectedStatus: http.StatusOK,
-			expectedBody:   "success",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/test", nil)
-			if tt.authHeader != "" {
-				req.Header.Set("Authorization", tt.authHeader)
-			}
-			w := httptest.NewRecorder()
-
-			middleware.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.expectedStatus, w.Code)
-			assert.Contains(t, w.Body.String(), tt.expectedBody)
-
-			if tt.expectedStatus == http.StatusUnauthorized {
-				assert.Equal(t, `Basic realm="Alertmanager Gateway"`, w.Header().Get("WWW-Authenticate"))
-				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-
-				// Verify JSON response structure
-				var response map[string]interface{}
-				err := json.Unmarshal(w.Body.Bytes(), &response)
-				require.NoError(t, err)
-				assert.Equal(t, "error", response["status"])
-				assert.Contains(t, response, "timestamp")
-			}
-		})
-	}
-}
-
-func TestAPIAuthMiddleware(t *testing.T) {
-	cfg := &config.AuthConfig{
-		Enabled:     true,
-		Username:    "regular",
-		Password:    "regularpass",
-		APIUsername: "apiuser",
-		APIPassword: "apipass",
-	}
-
 	logger := logrus.New()
-	auth := NewAuthenticator(cfg, logger)
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+	t.Run("basic auth middleware", func(t *testing.T) {
+		cfg := &config.AuthConfig{
+			Enabled:  true,
+			Username: "testuser",
+			Password: "testpass",
+		}
+
+		auth := NewAuthenticator(cfg, logger)
+		middleware := auth.BasicAuthMiddleware(handler)
+
+		tests := []struct {
+			name           string
+			authHeader     string
+			expectedStatus int
+			expectedBody   string
+		}{
+			{
+				name:           "no auth header",
+				authHeader:     "",
+				expectedStatus: http.StatusUnauthorized,
+				expectedBody:   `"Basic authentication required"`,
+			},
+			{
+				name:           "invalid auth header format",
+				authHeader:     "Bearer token123",
+				expectedStatus: http.StatusUnauthorized,
+				expectedBody:   `"Basic authentication required"`,
+			},
+			{
+				name:           "invalid credentials",
+				authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("wrong:creds")),
+				expectedStatus: http.StatusUnauthorized,
+				expectedBody:   `"Invalid credentials"`,
+			},
+			{
+				name:           "valid credentials",
+				authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("testuser:testpass")),
+				expectedStatus: http.StatusOK,
+				expectedBody:   "success",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				req := httptest.NewRequest("GET", "/test", nil)
+				if tt.authHeader != "" {
+					req.Header.Set("Authorization", tt.authHeader)
+				}
+				w := httptest.NewRecorder()
+
+				middleware.ServeHTTP(w, req)
+
+				assert.Equal(t, tt.expectedStatus, w.Code)
+				assert.Contains(t, w.Body.String(), tt.expectedBody)
+
+				if tt.expectedStatus == http.StatusUnauthorized {
+					assert.Equal(t, `Basic realm="Alertmanager Gateway"`, w.Header().Get("WWW-Authenticate"))
+					assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+					// Verify JSON response structure
+					var response map[string]interface{}
+					err := json.Unmarshal(w.Body.Bytes(), &response)
+					require.NoError(t, err)
+					assert.Equal(t, "error", response["status"])
+					assert.Contains(t, response, "timestamp")
+				}
+			})
+		}
 	})
 
-	middleware := auth.APIAuthMiddleware(handler)
+	t.Run("API auth middleware", func(t *testing.T) {
+		cfg := &config.AuthConfig{
+			Enabled:     true,
+			Username:    "regular",
+			Password:    "regularpass",
+			APIUsername: "apiuser",
+			APIPassword: "apipass",
+		}
 
-	tests := []struct {
-		name           string
-		username       string
-		password       string
-		expectedStatus int
-	}{
-		{
-			name:           "valid API credentials",
-			username:       "apiuser",
-			password:       "apipass",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "valid regular credentials",
-			username:       "regular",
-			password:       "regularpass",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "invalid credentials",
-			username:       "wrong",
-			password:       "wrong",
-			expectedStatus: http.StatusUnauthorized,
-		},
-	}
+		auth := NewAuthenticator(cfg, logger)
+		middleware := auth.APIAuthMiddleware(handler)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/test", nil)
-			req.SetBasicAuth(tt.username, tt.password)
-			w := httptest.NewRecorder()
+		tests := []struct {
+			name           string
+			username       string
+			password       string
+			expectedStatus int
+		}{
+			{
+				name:           "valid API credentials",
+				username:       "apiuser",
+				password:       "apipass",
+				expectedStatus: http.StatusOK,
+			},
+			{
+				name:           "valid regular credentials",
+				username:       "regular",
+				password:       "regularpass",
+				expectedStatus: http.StatusOK,
+			},
+			{
+				name:           "invalid credentials",
+				username:       "wrong",
+				password:       "wrong",
+				expectedStatus: http.StatusUnauthorized,
+			},
+		}
 
-			middleware.ServeHTTP(w, req)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				req := httptest.NewRequest("GET", "/test", nil)
+				req.SetBasicAuth(tt.username, tt.password)
+				w := httptest.NewRecorder()
 
-			assert.Equal(t, tt.expectedStatus, w.Code)
-		})
-	}
+				middleware.ServeHTTP(w, req)
+
+				assert.Equal(t, tt.expectedStatus, w.Code)
+			})
+		}
+	})
 }
 
 func TestAuthenticationDisabled(t *testing.T) {

@@ -20,14 +20,9 @@ Universal adapter for Prometheus Alertmanager webhooks that transforms and route
 server:
   host: "0.0.0.0"
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   - name: "flock"
-    path: "/webhook/flock"
     method: "POST"
     url: "https://api.flock.com/hooks/sendMessage/${FLOCK_WEBHOOK_ID}"
     format: "json"
@@ -46,7 +41,6 @@ destinations:
 2. Run the gateway:
 
 ```bash
-export GATEWAY_PASSWORD="your-secure-password"
 export FLOCK_WEBHOOK_ID="your-flock-webhook-id"
 go run .
 ```
@@ -58,10 +52,6 @@ receivers:
   - name: 'flock'
     webhook_configs:
       - url: 'http://localhost:8080/webhook/flock'
-        http_config:
-          basic_auth:
-            username: 'alertmanager'
-            password: 'your-secure-password'
 ```
 
 ## Development
@@ -96,11 +86,22 @@ Run `task` to see all available tasks.
 
 ## Documentation
 
-See the [docs](docs/docs/) directory for detailed documentation:
+Complete documentation is available in the [docs](docs/docs/) directory:
 
-- [Architecture](docs/docs/architecture.md)
-- [API Reference](docs/docs/api.md)
-- [Implementation Roadmap](docs/docs/roadmap.md)
+- [Architecture](docs/docs/architecture.md) - System architecture and design patterns
+- [Configuration](docs/docs/configuration.md) - Configuration guide with examples
+- [API Reference](docs/docs/api.md) - REST API endpoints and usage
+- [Usage Examples](docs/docs/usage-examples.md) - Practical examples and recipes
+- [Deployment](docs/docs/deployment.md) - Deployment guides for various environments  
+- [Performance](docs/docs/performance-optimizations.md) - Performance tuning and optimization
+- [Troubleshooting](docs/docs/troubleshooting.md) - Common issues and solutions
+
+You can also view the documentation using MkDocs:
+
+```bash
+cd docs
+mkdocs serve
+```
 
 ## License
 

@@ -3,14 +3,10 @@
 
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   - name: "slack"
-    url: "${SLACK_WEBHOOK_URL}"
+    url: "${env:SLACK_WEBHOOK_URL}"
     method: "POST"
     format: "json"
     engine: "go-template"

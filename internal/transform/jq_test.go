@@ -270,208 +270,214 @@ func TestJQEngine_TransformAlert(t *testing.T) {
 	}
 }
 
-func TestJQEngine_Validate(t *testing.T) {
-	tests := []struct {
-		name    string
-		query   string
-		wantErr bool
-	}{
-		{
-			name:  "valid simple query",
-			query: ".status",
-		},
-		{
-			name:  "valid complex query",
-			query: ".alerts | map(select(.status == \"firing\")) | length",
-		},
-		{
-			name:  "valid conditional",
-			query: "if .status == \"firing\" then \"red\" else \"green\" end",
-		},
-		{
-			name:    "invalid operation",
-			query:   ".status + .alerts",
-			wantErr: true,
-		},
-	}
+func TestJQEngine_Advanced(t *testing.T) {
+	t.Run("validate", func(t *testing.T) {
+		tests := []struct {
+			name    string
+			query   string
+			wantErr bool
+		}{
+			{
+				name:  "valid simple query",
+				query: ".status",
+			},
+			{
+				name:  "valid complex query",
+				query: ".alerts | map(select(.status == \"firing\")) | length",
+			},
+			{
+				name:  "valid conditional",
+				query: "if .status == \"firing\" then \"red\" else \"green\" end",
+			},
+			{
+				name:    "invalid operation",
+				query:   ".status + .alerts",
+				wantErr: true,
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			engine, err := NewJQEngine(tt.query)
-			require.NoError(t, err)
-
-			err = engine.Validate()
-
-			if tt.wantErr {
-				require.Error(t, err)
-			} else {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				engine, err := NewJQEngine(tt.query)
 				require.NoError(t, err)
-			}
-		})
-	}
-}
 
-func TestJQEngine_ConcurrentAccess(t *testing.T) {
-	engine, err := NewJQEngine(".status")
-	require.NoError(t, err)
+				err = engine.Validate()
 
-	payload := &alertmanager.WebhookPayload{
-		Status: "firing",
-	}
-
-	// Run multiple transformations concurrently
-	done := make(chan bool, 10)
-	for i := 0; i < 10; i++ {
-		go func() {
-			result, err := engine.Transform(payload)
-			assert.NoError(t, err)
-			assert.Equal(t, "firing", result)
-			done <- true
-		}()
-	}
-
-	// Wait for all goroutines to complete
-	for i := 0; i < 10; i++ {
-		<-done
-	}
-}
-
-func TestJQEngine_ComplexTransformations(t *testing.T) {
-	payload := &alertmanager.WebhookPayload{
-		Version:  "4",
-		GroupKey: "test",
-		Status:   "firing",
-		Alerts: []alertmanager.Alert{
-			{
-				Status: "firing",
-				Labels: map[string]string{
-					"alertname": "HighCPU",
-					"severity":  "critical",
-				},
-				Annotations: map[string]string{
-					"summary": "CPU is high",
-				},
-			},
-			{
-				Status: "firing",
-				Labels: map[string]string{
-					"alertname": "HighMemory",
-					"severity":  "warning",
-				},
-				Annotations: map[string]string{
-					"summary": "Memory is high",
-				},
-			},
-		},
-	}
-
-	tests := []struct {
-		name     string
-		query    string
-		expected interface{}
-	}{
-		{
-			name:  "filter and map alerts",
-			query: ".alerts | map(select(.labels.severity == \"critical\")) | map(.labels.alertname)",
-			expected: []interface{}{
-				"HighCPU",
-			},
-		},
-		{
-			name:  "group by severity",
-			query: ".alerts | group_by(.labels.severity) | map({severity: .[0].labels.severity, count: length})",
-			expected: []interface{}{
-				map[string]interface{}{
-					"severity": "critical",
-					"count":    1,
-				},
-				map[string]interface{}{
-					"severity": "warning",
-					"count":    1,
-				},
-			},
-		},
-		{
-			name:     "count alerts by status",
-			query:    ".alerts | map(select(.status == \"firing\")) | length",
-			expected: 2,
-		},
-		{
-			name:     "create formatted message",
-			query:    "\"Alert: \" + (.alerts | length | tostring) + \" firing alerts\"",
-			expected: "Alert: 2 firing alerts",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			engine, err := NewJQEngine(tt.query)
-			require.NoError(t, err)
-
-			result, err := engine.Transform(payload)
-			require.NoError(t, err)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestJQEngine_ErrorHandling(t *testing.T) {
-	tests := []struct {
-		name    string
-		query   string
-		payload *alertmanager.WebhookPayload
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			name:  "division by zero",
-			query: "1 / 0",
-			payload: &alertmanager.WebhookPayload{
-				Status: "firing",
-			},
-			wantErr: true,
-		},
-		{
-			name:  "type error",
-			query: ".status + .alerts",
-			payload: &alertmanager.WebhookPayload{
-				Status: "firing",
-				Alerts: []alertmanager.Alert{{}},
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			engine, err := NewJQEngine(tt.query)
-			require.NoError(t, err)
-
-			_, err = engine.Transform(tt.payload)
-
-			if tt.wantErr {
-				require.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.wantErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
 				}
-			} else {
+			})
+		}
+	})
+
+
+	t.Run("concurrent access", func(t *testing.T) {
+		engine, err := NewJQEngine(".status")
+		require.NoError(t, err)
+
+		payload := &alertmanager.WebhookPayload{
+			Status: "firing",
+		}
+
+		// Run multiple transformations concurrently
+		done := make(chan bool, 10)
+		for i := 0; i < 10; i++ {
+			go func() {
+				result, err := engine.Transform(payload)
+				assert.NoError(t, err)
+				assert.Equal(t, "firing", result)
+				done <- true
+			}()
+		}
+
+		// Wait for all goroutines to complete
+		for i := 0; i < 10; i++ {
+			<-done
+		}
+	})
+
+
+	t.Run("complex transformations", func(t *testing.T) {
+		payload := &alertmanager.WebhookPayload{
+			Version:  "4",
+			GroupKey: "test",
+			Status:   "firing",
+			Alerts: []alertmanager.Alert{
+				{
+					Status: "firing",
+					Labels: map[string]string{
+						"alertname": "HighCPU",
+						"severity":  "critical",
+					},
+					Annotations: map[string]string{
+						"summary": "CPU is high",
+					},
+				},
+				{
+					Status: "firing",
+					Labels: map[string]string{
+						"alertname": "HighMemory",
+						"severity":  "warning",
+					},
+					Annotations: map[string]string{
+						"summary": "Memory is high",
+					},
+				},
+			},
+		}
+
+		tests := []struct {
+			name     string
+			query    string
+			expected interface{}
+		}{
+			{
+				name:  "filter and map alerts",
+				query: ".alerts | map(select(.labels.severity == \"critical\")) | map(.labels.alertname)",
+				expected: []interface{}{
+					"HighCPU",
+				},
+			},
+			{
+				name:  "group by severity",
+				query: ".alerts | group_by(.labels.severity) | map({severity: .[0].labels.severity, count: length})",
+				expected: []interface{}{
+					map[string]interface{}{
+						"severity": "critical",
+						"count":    1,
+					},
+					map[string]interface{}{
+						"severity": "warning",
+						"count":    1,
+					},
+				},
+			},
+			{
+				name:     "count alerts by status",
+				query:    ".alerts | map(select(.status == \"firing\")) | length",
+				expected: 2,
+			},
+			{
+				name:     "create formatted message",
+				query:    "\"Alert: \" + (.alerts | length | tostring) + \" firing alerts\"",
+				expected: "Alert: 2 firing alerts",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				engine, err := NewJQEngine(tt.query)
 				require.NoError(t, err)
-			}
-		})
-	}
-}
 
-func TestJQEngine_PerformanceTimeout(t *testing.T) {
-	// Create a query that should cause an error (simulating complex processing)
-	engine, err := NewJQEngine(".status + .alerts")
-	require.NoError(t, err)
+				result, err := engine.Transform(payload)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			})
+		}
+	})
 
-	payload := &alertmanager.WebhookPayload{
-		Status: "firing",
-		Alerts: []alertmanager.Alert{{}},
-	}
 
-	_, err = engine.Transform(payload)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "jq transformation failed")
+	t.Run("error handling", func(t *testing.T) {
+		tests := []struct {
+			name    string
+			query   string
+			payload *alertmanager.WebhookPayload
+			wantErr bool
+			errMsg  string
+		}{
+			{
+				name:  "division by zero",
+				query: "1 / 0",
+				payload: &alertmanager.WebhookPayload{
+					Status: "firing",
+				},
+				wantErr: true,
+			},
+			{
+				name:  "type error",
+				query: ".status + .alerts",
+				payload: &alertmanager.WebhookPayload{
+					Status: "firing",
+					Alerts: []alertmanager.Alert{{}},
+				},
+				wantErr: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				engine, err := NewJQEngine(tt.query)
+				require.NoError(t, err)
+
+				_, err = engine.Transform(tt.payload)
+
+				if tt.wantErr {
+					require.Error(t, err)
+					if tt.errMsg != "" {
+						assert.Contains(t, err.Error(), tt.errMsg)
+					}
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		}
+	})
+
+
+	t.Run("performance timeout", func(t *testing.T) {
+		// Create a query that should cause an error (simulating complex processing)
+		engine, err := NewJQEngine(".status + .alerts")
+		require.NoError(t, err)
+
+		payload := &alertmanager.WebhookPayload{
+			Status: "firing",
+			Alerts: []alertmanager.Alert{{}},
+		}
+
+		_, err = engine.Transform(payload)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "jq transformation failed")
+	})
 }

@@ -1,6 +1,6 @@
 # Performance Optimizations
 
-This document describes the performance optimizations implemented in Phase 6.1 of the Alertmanager Gateway project.
+This document describes the performance optimizations implemented in the Alertmanager Gateway to achieve production-ready performance characteristics.
 
 ## Overview
 

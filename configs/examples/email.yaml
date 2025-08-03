@@ -3,10 +3,6 @@
 
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   # SendGrid Email API
@@ -19,8 +15,8 @@ destinations:
       {
         personalizations: [{
           to: [
-            { email: $ONCALL_EMAIL },
-            { email: $TEAM_EMAIL }
+            { email: "${env:ONCALL_EMAIL}" },
+            { email: "${env:TEAM_EMAIL}" }
           ],
           subject: (
             (if .status == "firing" then "[ALERT] " else "[RESOLVED] " end) +
@@ -36,45 +32,11 @@ destinations:
         content: [{
           type: "text/html",
           value: (
-            "<h2>" + (if .status == "firing" then "🚨 Alert Firing" else "✅ Alert Resolved" end) + "</h2>" +
-            "<table style='border-collapse: collapse; width: 100%;'>" +
-            "<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Alert Name:</strong></td>" +
-            "<td style='padding: 8px; border: 1px solid #ddd;'>" + .groupLabels.alertname + "</td></tr>" +
-            "<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Severity:</strong></td>" +
-            "<td style='padding: 8px; border: 1px solid #ddd;'>" + (.commonLabels.severity // "unknown") + "</td></tr>" +
-            "<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Status:</strong></td>" +
-            "<td style='padding: 8px; border: 1px solid #ddd;'>" + .status + "</td></tr>" +
-            "<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Environment:</strong></td>" +
-            "<td style='padding: 8px; border: 1px solid #ddd;'>" + (.commonLabels.env // "production") + "</td></tr>" +
-            "<tr><td style='padding: 8px; border: 1px solid #ddd;'><strong>Alert Count:</strong></td>" +
-            "<td style='padding: 8px; border: 1px solid #ddd;'>" + (.alerts | length | tostring) + "</td></tr>" +
-            "</table>" +
-            "<h3>Summary</h3>" +
+            "<h2>" + (if .status == "firing" then "Alert Firing" else "Alert Resolved" end) + "</h2>" +
+            "<p><strong>" + .groupLabels.alertname + "</strong> - " + (.commonLabels.severity // "unknown") + "</p>" +
             "<p>" + (.commonAnnotations.summary // "No summary available") + "</p>" +
-            (if .commonAnnotations.description then
-              "<h3>Description</h3><p>" + .commonAnnotations.description + "</p>"
-            else "" end) +
-            "<h3>Affected Instances</h3>" +
-            "<ul>" +
-            (.alerts | map(
-              "<li><strong>" + (.labels.instance // "unknown") + "</strong> - " + 
-              .status + " since " + (.startsAt | strftime("%Y-%m-%d %H:%M:%S UTC")) +
-              (if .annotations.description then "<br/>" + .annotations.description else "" end) +
-              "</li>"
-            ) | join("")) +
-            "</ul>" +
-            "<h3>Actions</h3>" +
-            "<p>" +
-            "<a href='" + .externalURL + "' style='background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; display: inline-block; margin: 5px;'>View in Alertmanager</a>" +
-            (if .commonAnnotations.runbook_url then
-              " <a href='" + .commonAnnotations.runbook_url + "' style='background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; display: inline-block; margin: 5px;'>View Runbook</a>"
-            else "" end) +
-            (if .commonAnnotations.dashboard_url then
-              " <a href='" + .commonAnnotations.dashboard_url + "' style='background-color: #FF9800; color: white; padding: 10px 20px; text-decoration: none; display: inline-block; margin: 5px;'>View Dashboard</a>"
-            else "" end) +
-            "</p>" +
-            "<hr style='margin-top: 30px;'/>" +
-            "<p style='font-size: 12px; color: #666;'>This alert was sent by Prometheus Alertmanager Gateway</p>"
+            "<p>Alert Count: " + (.alerts | length | tostring) + "</p>" +
+            "<p><a href='" + .externalURL + "'>View in Alertmanager</a></p>"
           )
         }],
         mail_settings: {
@@ -92,7 +54,7 @@ destinations:
         }
       }
     headers:
-      Authorization: "Bearer ${SENDGRID_API_KEY}"
+      Authorization: "Bearer ${env:SENDGRID_API_KEY}"
       Content-Type: "application/json"
     enabled: true
     retry:
@@ -101,61 +63,3 @@ destinations:
       initial_delay: 2s
       max_delay: 30s
 
-  # Generic email webhook service
-  - name: "email-webhook"
-    url: "${EMAIL_WEBHOOK_URL}/send"
-    method: "POST"
-    format: "json"
-    engine: "go-template"
-    template: |
-      {
-        "to": ["{{.Env.ONCALL_EMAIL}}", "{{.Env.TEAM_EMAIL}}"],
-        "from": "alerts@example.com",
-        "subject": "{{if eq .Status "firing"}}[ALERT]{{else}}[RESOLVED]{{end}} {{.GroupLabels.alertname}} - {{index .CommonLabels "severity" | default "unknown"}}",
-        "html": true,
-        "body": "
-          <h2>{{if eq .Status "firing"}}🚨 Alert Firing{{else}}✅ Alert Resolved{{end}}</h2>
-          
-          <table border='1' cellpadding='5' cellspacing='0'>
-            <tr>
-              <td><strong>Alert:</strong></td>
-              <td>{{.GroupLabels.alertname}}</td>
-            </tr>
-            <tr>
-              <td><strong>Severity:</strong></td>
-              <td>{{index .CommonLabels "severity" | default "unknown"}}</td>
-            </tr>
-            <tr>
-              <td><strong>Status:</strong></td>
-              <td>{{.Status}}</td>
-            </tr>
-            <tr>
-              <td><strong>Alert Count:</strong></td>
-              <td>{{len .Alerts}}</td>
-            </tr>
-          </table>
-          
-          <h3>Summary</h3>
-          <p>{{.CommonAnnotations.summary | default "No summary available"}}</p>
-          
-          <h3>Affected Instances</h3>
-          <ul>
-          {{range .Alerts}}
-            <li>
-              <strong>{{.Labels.instance | default "unknown"}}</strong> - 
-              {{.Status}} since {{.StartsAt | timeformat "2006-01-02 15:04:05 MST"}}
-            </li>
-          {{end}}
-          </ul>
-          
-          <p>
-            <a href='{{.ExternalURL}}'>View in Alertmanager</a>
-            {{if .CommonAnnotations.runbook_url}}| <a href='{{.CommonAnnotations.runbook_url}}'>Runbook</a>{{end}}
-            {{if .CommonAnnotations.dashboard_url}}| <a href='{{.CommonAnnotations.dashboard_url}}'>Dashboard</a>{{end}}
-          </p>
-        ",
-        "priority": "{{if eq (index .CommonLabels "severity") "critical"}}high{{else}}normal{{end}}"
-      }
-    headers:
-      X-API-Key: "${EMAIL_API_KEY}"
-    enabled: false

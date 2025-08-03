@@ -92,10 +92,6 @@ server:
   port: 8080
   read_timeout: 30s
   write_timeout: 30s
-  auth:
-    enabled: true
-    username: "admin"
-    password: "{{ .Env.GATEWAY_PASSWORD }}"  # Use environment variable
 
 destinations:
   # Using Go template (default)
@@ -739,24 +735,12 @@ template: |
 
 ## Security Considerations
 
-### Server Authentication
-The gateway supports HTTP Basic Authentication to protect all endpoints:
+### Network Security
+The gateway provides secure communication through:
 
-```yaml
-server:
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "{{ .Env.GATEWAY_PASSWORD }}"
-    # Optional: Different credentials for API endpoints
-    api_username: "admin"
-    api_password: "{{ .Env.API_PASSWORD }}"
-```
-
-When enabled, all requests must include the Authorization header:
-```
-Authorization: Basic <base64(username:password)>
-```
+- TLS support for incoming connections
+- Certificate validation for outbound requests
+- Configurable timeouts to prevent hanging connections
 
 ### Destination Authentication
 - Support for various authentication methods per destination
@@ -791,12 +775,12 @@ graph TB
 ```
 
 ### Deployment Patterns
-1. **Stateless Design**: No persistent state, can scale horizontally
+
+1. **Stateless Design**: No persistent state enables horizontal scaling
 2. **Configuration Management**: 
-   - File-based configuration
-   - Environment variable support
-   - Configuration validation on startup
-3. **Health Checks**: `/health` endpoint for monitoring
+   - File-based configuration with environment variable support
+   - Configuration validation on startup prevents runtime errors
+3. **Health Checks**: Multiple endpoints for different types of monitoring
 
 ## Monitoring and Observability
 

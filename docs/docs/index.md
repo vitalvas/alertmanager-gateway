@@ -35,10 +35,6 @@ Create a `config.yaml` file:
 server:
   host: "0.0.0.0"
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"  # Set via environment variable
 
 destinations:
   - name: "slack"
@@ -68,10 +64,6 @@ receivers:
     webhook_configs:
       - url: 'http://alertmanager-gateway:8080/webhook/slack'
         send_resolved: true
-        http_config:
-          basic_auth:
-            username: 'alertmanager'
-            password: 'your-password'
 ```
 
 ## Architecture Overview

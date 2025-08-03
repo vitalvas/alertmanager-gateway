@@ -3,10 +3,6 @@
 
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   - name: "pagerduty"
@@ -16,7 +12,7 @@ destinations:
     engine: "jq"
     transform: |
       {
-        routing_key: $PAGERDUTY_ROUTING_KEY,
+        routing_key: "${env:PAGERDUTY_ROUTING_KEY}",
         event_action: (
           if .status == "firing" then "trigger"
           elif .status == "resolved" then "resolve"

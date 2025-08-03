@@ -3,14 +3,10 @@
 
 server:
   port: 8080
-  auth:
-    enabled: true
-    username: "alertmanager"
-    password: "${GATEWAY_PASSWORD}"
 
 destinations:
   - name: "splunk-hec"
-    url: "${SPLUNK_HEC_URL}/services/collector/event"
+    url: "${env:SPLUNK_HEC_URL}/services/collector/event"
     method: "POST"
     format: "json"
     engine: "jq"
@@ -19,49 +15,20 @@ destinations:
         time: now,
         source: "prometheus-alertmanager",
         sourcetype: "_json",
-        index: ($SPLUNK_INDEX // "alerts"),
+        index: ("${env:SPLUNK_INDEX}" // "alerts"),
         host: .externalURL | split("//")[1] | split("/")[0],
         event: {
-          alert_type: "prometheus",
-          group_key: .groupKey,
+          alert_name: .groupLabels.alertname,
           status: .status,
-          group_labels: .groupLabels,
-          common_labels: .commonLabels,
-          common_annotations: .commonAnnotations,
-          external_url: .externalURL,
-          version: .version,
-          receiver: .receiver,
-          truncated_alerts: .truncatedAlerts,
-          alerts: [.alerts[] | {
-            fingerprint: .fingerprint,
-            status: .status,
-            labels: .labels,
-            annotations: .annotations,
-            starts_at: .startsAt,
-            ends_at: (if .endsAt then .endsAt else null end),
-            generator_url: .generatorURL,
-            duration_seconds: (
-              if .status == "resolved" and .endsAt then
-                ((.endsAt | fromdateiso8601) - (.startsAt | fromdateiso8601))
-              else
-                (now - (.startsAt | fromdateiso8601))
-              end
-            )
-          }],
-          summary: {
-            total_alerts: (.alerts | length),
-            firing_alerts: (.alerts | map(select(.status == "firing")) | length),
-            resolved_alerts: (.alerts | map(select(.status == "resolved")) | length),
-            critical_count: (.alerts | map(select(.labels.severity == "critical")) | length),
-            warning_count: (.alerts | map(select(.labels.severity == "warning")) | length),
-            affected_services: ([.alerts[].labels.service] | unique),
-            affected_instances: ([.alerts[].labels.instance] | unique)
-          }
+          severity: (.commonLabels.severity // "info"),
+          alert_count: (.alerts | length),
+          group_key: .groupKey,
+          summary: .commonAnnotations.summary
         }
       }
     headers:
-      Authorization: "Splunk ${SPLUNK_HEC_TOKEN}"
-      X-Splunk-Request-Channel: "${SPLUNK_CHANNEL_ID}"
+      Authorization: "Splunk ${env:SPLUNK_HEC_TOKEN}"
+      X-Splunk-Request-Channel: "${env:SPLUNK_CHANNEL_ID}"
     enabled: true
     retry:
       max_attempts: 5
@@ -69,50 +36,3 @@ destinations:
       initial_delay: 1s
       max_delay: 60s
 
-  # Alternative: Send each alert as a separate event
-  - name: "splunk-hec-split"
-    url: "${SPLUNK_HEC_URL}/services/collector/event"
-    method: "POST"
-    format: "json"
-    engine: "jq"
-    transform: |
-      {
-        time: (.alert.startsAt | fromdateiso8601),
-        source: "prometheus-alertmanager",
-        sourcetype: "prometheus:alert",
-        index: ($SPLUNK_ALERTS_INDEX // "alerts"),
-        host: (.alert.labels.instance // .externalURL | split("//")[1] | split("/")[0]),
-        event: {
-          alert_name: .alert.labels.alertname,
-          alert_fingerprint: .alert.fingerprint,
-          status: .alert.status,
-          severity: (.alert.labels.severity // "unknown"),
-          instance: (.alert.labels.instance // "unknown"),
-          job: (.alert.labels.job // "unknown"),
-          environment: (.alert.labels.env // "production"),
-          service: (.alert.labels.service // "unknown"),
-          region: (.alert.labels.region // "unknown"),
-          summary: (.alert.annotations.summary // ""),
-          description: (.alert.annotations.description // ""),
-          runbook_url: (.alert.annotations.runbook_url // ""),
-          dashboard_url: (.alert.annotations.dashboard_url // ""),
-          starts_at: .alert.startsAt,
-          ends_at: (if .alert.endsAt then .alert.endsAt else null end),
-          duration_seconds: (
-            if .alert.status == "resolved" and .alert.endsAt then
-              ((.alert.endsAt | fromdateiso8601) - (.alert.startsAt | fromdateiso8601))
-            else null end
-          ),
-          labels: .alert.labels,
-          annotations: .alert.annotations,
-          group_key: .groupKey,
-          group_labels: .groupLabels,
-          generator_url: .alert.generatorURL
-        }
-      }
-    headers:
-      Authorization: "Splunk ${SPLUNK_HEC_TOKEN}"
-    enabled: false
-    split_alerts: true
-    batch_size: 50
-    parallel_requests: 5

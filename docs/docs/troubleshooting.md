@@ -56,14 +56,13 @@ Alertmanager shows successful webhook delivery, but the gateway doesn't process 
 
 #### Possible Causes & Solutions
 
-1. **Authentication Misconfiguration**
-   - Verify credentials match between Alertmanager and gateway
-   - Check if authentication is enabled in gateway but not configured in Alertmanager
+1. **Network Connectivity Issues**
+   - Verify network connectivity between Alertmanager and gateway
+   - Check for firewall rules blocking traffic
    
    Test with curl:
    ```bash
    curl -v -X POST http://gateway:8080/webhook/destination \
-     -u username:password \
      -H "Content-Type: application/json" \
      -d @test-alert.json
    ```
@@ -103,7 +102,6 @@ Gateway receives alerts but doesn't forward them to the configured destination.
    Test transformation:
    ```bash
    curl -X POST http://gateway:8080/api/v1/test/destination-name \
-     -u username:password \
      -H "Content-Type: application/json" \
      -d @webhook-payload.json
    ```
@@ -137,8 +135,7 @@ Gateway receives alerts but doesn't forward them to the configured destination.
 5. **Circuit Breaker Open**
    Check API endpoint:
    ```bash
-   curl http://gateway:8080/api/v1/destinations/destination-name \
-     -u username:password
+   curl http://gateway:8080/api/v1/destinations/destination-name
    ```
    
    Reset by waiting for timeout or restarting gateway.
@@ -194,33 +191,29 @@ High latency when processing alerts or API calls.
    - Increase resources if needed
    - Consider running multiple gateway instances
 
-### Authentication Issues
+### Connection Issues
 
 #### Symptom
-Receiving 401 Unauthorized errors.
+Gateway is not reachable or connections are being refused.
 
 #### Debugging Steps
 
-1. **Verify Credentials**
+1. **Verify Gateway is Running**
    ```bash
-   # Test with curl
-   curl -v -u username:password http://gateway:8080/health
+   # Test gateway health
+   curl -v http://gateway:8080/health
    ```
 
-2. **Check Rate Limiting**
-   After multiple failed attempts, you may be rate-limited:
-   - 429 Too Many Requests response
-   - Retry-After header indicates wait time
-   - Default: 5 attempts per minute, 15-minute ban
+2. **Check Network Connectivity**
+   Verify there are no network issues:
+   - Check firewall rules
+   - Verify DNS resolution
+   - Test basic connectivity with ping/telnet
 
-3. **Different API Credentials**
-   API endpoints may use different credentials:
-   ```yaml
-   auth:
-     username: "webhook-user"
-     password: "webhook-pass"
-     api_username: "api-user"     # Different credentials
-     api_password: "api-pass"
+3. **Review Gateway Logs**
+   Check gateway logs for connection errors:
+   ```bash
+   tail -f gateway.log | grep -i "connection\|error"
    ```
 
 ### Template Function Errors
@@ -274,8 +267,8 @@ grep -i "template" gateway.log
 # Connection errors
 grep -i "connection\|timeout" gateway.log
 
-# Authentication failures
-grep -i "unauthorized\|401" gateway.log
+# Connection errors
+grep -i "connection\|refused" gateway.log
 ```
 
 #### Use Test Endpoints
@@ -283,7 +276,6 @@ grep -i "unauthorized\|401" gateway.log
 1. **Test Transformation**
    ```bash
    curl -X POST http://gateway:8080/api/v1/test/slack \
-     -u username:password \
      -H "Content-Type: application/json" \
      -d @test-payload.json
    ```
@@ -291,15 +283,13 @@ grep -i "unauthorized\|401" gateway.log
 2. **Emulate Request**
    ```bash
    curl -X POST http://gateway:8080/api/v1/emulate/slack?dry_run=true \
-     -u username:password \
      -H "Content-Type: application/json" \
      -d @test-payload.json
    ```
 
 3. **Check Destination Status**
    ```bash
-   curl http://gateway:8080/api/v1/destinations \
-     -u username:password | jq
+   curl http://gateway:8080/api/v1/destinations | jq
    ```
 
 #### Monitor Metrics
@@ -394,11 +384,11 @@ parallel_requests: 5
 2. Or restart the gateway
 3. Or implement admin endpoint to reset
 
-#### Clear Rate Limit
+#### Clear Connection Pool
 
-1. Wait for ban duration (default 15 minutes)
-2. Or restart gateway (clears in-memory limits)
-3. Or implement persistent rate limiting with Redis
+1. Restart the gateway to clear connection pools
+2. Check for connection leaks in destination systems
+3. Increase connection timeouts if needed
 
 #### Recover from Template Errors
 
@@ -432,7 +422,6 @@ When reporting issues, include:
 4. **Test webhook payload**
    ```bash
    curl http://gateway:8080/api/v1/test/destination \
-     -u username:password \
      -H "Content-Type: application/json" \
      -d @test.json
    ```
