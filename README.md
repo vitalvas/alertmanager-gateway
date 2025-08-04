@@ -24,7 +24,7 @@ server:
 destinations:
   - name: "flock"
     method: "POST"
-    url: "https://api.flock.com/hooks/sendMessage/${FLOCK_WEBHOOK_ID}"
+    url: "https://api.flock.com/hooks/sendMessage/${env:FLOCK_WEBHOOK_ID}"
     format: "json"
     engine: "jq"
     transform: |

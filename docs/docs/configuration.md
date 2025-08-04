@@ -23,7 +23,7 @@ destinations:
     template: ""                # Go template (when engine is go-template)
     transform: ""               # JQ query (when engine is jq)
     headers:                    # Custom headers (supports env vars)
-      Authorization: "Bearer ${API_TOKEN}"
+      Authorization: "Bearer ${env:API_TOKEN}"
     enabled: true               # Enable/disable destination
     split_alerts: false         # Send alerts individually
     batch_size: 10              # Alerts per batch (when splitting)
@@ -52,7 +52,7 @@ server:
 
 destinations:
   - name: slack
-    url: "${SLACK_WEBHOOK_URL}"
+    url: "${env:SLACK_WEBHOOK_URL}"
     method: POST
     format: json
     engine: go-template
@@ -135,7 +135,7 @@ Send formatted alerts to Microsoft Teams:
 ```yaml
 destinations:
   - name: teams
-    url: "${TEAMS_WEBHOOK_URL}"
+    url: "${env:TEAMS_WEBHOOK_URL}"
     method: POST
     format: json
     engine: go-template
@@ -199,7 +199,7 @@ destinations:
       DESCRIPTION={{.CommonAnnotations.summary | urlquery}}&
       ALERTS_JSON={{. | json | urlquery}}
     headers:
-      Authorization: "Basic ${JENKINS_AUTH}"
+      Authorization: "Basic ${env:JENKINS_AUTH}"
     enabled: true
     retry:
       max_attempts: 3
@@ -237,7 +237,7 @@ destinations:
         }
       }
     headers:
-      Authorization: "Splunk ${SPLUNK_HEC_TOKEN}"
+      Authorization: "Splunk ${env:SPLUNK_HEC_TOKEN}"
     enabled: true
     split_alerts: true
     parallel_requests: 10
@@ -272,7 +272,7 @@ destinations:
         }
       }
     headers:
-      Authorization: "Bearer ${TICKETING_API_TOKEN}"
+      Authorization: "Bearer ${env:TICKETING_API_TOKEN}"
       X-Auto-Create: "true"
     enabled: true
     split_alerts: true
@@ -316,7 +316,7 @@ destinations:
         ]
       }
     headers:
-      X-Webhook-Token: "${WEBHOOK_SECRET}"
+      X-Webhook-Token: "${env:WEBHOOK_SECRET}"
       X-Alert-Count: "{{len .Alerts}}"
       X-Alert-Status: "{{.Status}}"
       X-Timestamp: "{{now | unixtime}}"
@@ -362,7 +362,7 @@ destinations:
       {{end}}
       timestamp={{now | unixtime}}
     headers:
-      X-API-Key: "${LEGACY_API_KEY}"
+      X-API-Key: "${env:LEGACY_API_KEY}"
     enabled: true
 
   # Query parameter endpoint
@@ -426,7 +426,7 @@ server:
 destinations:
   # Primary notification channel with circuit breaker
   - name: primary-slack
-    url: "${SLACK_PRIMARY_WEBHOOK}"
+    url: "${env:SLACK_PRIMARY_WEBHOOK}"
     method: POST
     format: json
     engine: go-template
@@ -456,7 +456,7 @@ destinations:
 
   # Fallback notification channel
   - name: fallback-email
-    url: "${EMAIL_WEBHOOK_URL}"
+    url: "${env:EMAIL_WEBHOOK_URL}"
     method: POST
     format: json
     engine: jq
@@ -533,7 +533,7 @@ destinations:
         })
       }
     headers:
-      Authorization: "Bearer ${METRICS_API_TOKEN}"
+      Authorization: "Bearer ${env:METRICS_API_TOKEN}"
     enabled: true
     split_alerts: false
     retry:
@@ -565,7 +565,7 @@ export GATEWAY_SERVER_PORT=9090
 
 ### Traditional Variable Substitution
 
-The configuration also supports environment variable substitution using `${VAR_NAME}` syntax:
+The configuration also supports environment variable substitution using `${env:VAR_NAME}` syntax:
 
 ```yaml
 # Example with environment variables
@@ -574,9 +574,9 @@ server:
 
 destinations:
   - name: webhook
-    url: ${WEBHOOK_URL}
+    url: ${env:WEBHOOK_URL}
     headers:
-      Authorization: "Bearer ${API_TOKEN}"
+      Authorization: "Bearer ${env:API_TOKEN}"
       X-Custom-Header: "${CUSTOM_VALUE:-default}"
 ```
 
