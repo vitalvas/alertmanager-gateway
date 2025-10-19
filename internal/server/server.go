@@ -128,12 +128,12 @@ func (s *Server) GetRouter() *mux.Router {
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
 	// Health check endpoints (keeping legacy endpoints for backward compatibility)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	s.router.HandleFunc("/health/live", s.handleHealthLive).Methods("GET")
-	s.router.HandleFunc("/health/ready", s.handleHealthReady).Methods("GET")
+	s.router.HandleFunc("/health", s.handleHealth).Methods(http.MethodGet)
+	s.router.HandleFunc("/health/live", s.handleHealthLive).Methods(http.MethodGet)
+	s.router.HandleFunc("/health/ready", s.handleHealthReady).Methods(http.MethodGet)
 
 	// Metrics endpoint (placeholder for now)
-	s.router.HandleFunc("/metrics", s.handleMetrics).Methods("GET")
+	s.router.HandleFunc("/metrics", s.handleMetrics).Methods(http.MethodGet)
 
 	// Profiling endpoints (only in debug mode or when explicitly enabled)
 	if os.Getenv("ENABLE_PPROF") == "true" {
@@ -158,7 +158,7 @@ func (s *Server) setupRoutes() {
 		webhookRouter.Use(s.authMiddleware)
 	}
 	webhookRouter.Use(webhook.ValidationMiddleware(s.logger))
-	webhookRouter.HandleFunc("/{destination}", s.webhookHandler.HandleWebhook).Methods("POST")
+	webhookRouter.HandleFunc("/{destination}", s.webhookHandler.HandleWebhook).Methods(http.MethodPost)
 
 	// Default handler for unmatched routes
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)

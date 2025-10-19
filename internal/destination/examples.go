@@ -1,6 +1,7 @@
 package destination
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/vitalvas/alertmanager-gateway/internal/config"
@@ -8,13 +9,13 @@ import (
 
 // FlockWebhookTemplate is an example template for Flock chat notifications
 const FlockWebhookTemplate = `{
-  "text": "🚨 Alert: {{ .GroupLabels.alertname }} [{{ .Status | upper }}]",
+  "text": "Alert: {{ .GroupLabels.alertname }} [{{ .Status | upper }}]",
   "attachments": [{
     "title": "{{ .CommonAnnotations.summary }}",
     "description": "{{ range .Alerts }}{{ if .Annotations.description }}• {{ .Annotations.description }}\n{{ end }}{{ end }}",
     "color": "{{ if eq .Status "firing" }}#ff0000{{ else }}#36a64f{{ end }}",
     "views": {
-      "flockml": "<flockml>{{ if .CommonAnnotations.runbook_url }}<a href=\"{{ .CommonAnnotations.runbook_url }}\">📖 Runbook</a> | {{ end }}<a href=\"{{ .ExternalURL }}\">🔗 Alertmanager</a></flockml>"
+      "flockml": "<flockml>{{ if .CommonAnnotations.runbook_url }}<a href=\"{{ .CommonAnnotations.runbook_url }}\">Runbook</a> | {{ end }}<a href=\"{{ .ExternalURL }}\">Alertmanager</a></flockml>"
     },
     "forwards": true
   }],
@@ -146,7 +147,7 @@ const TelegramBotTemplate = `{
   "chat_id": "${TELEGRAM_CHAT_ID}",
   "parse_mode": "Markdown",
   "disable_web_page_preview": true,
-  "text": "{{ if eq .Status "firing" }}🚨{{ else }}✅{{ end }} *{{ .GroupLabels.alertname | replace "_" "\\_" | replace "*" "\\*" }}*\n\n{{ if .CommonAnnotations.summary }}📝 {{ .CommonAnnotations.summary | replace "_" "\\_" | replace "*" "\\*" }}\n{{ end }}{{ if .CommonAnnotations.description }}📋 {{ .CommonAnnotations.description | replace "_" "\\_" | replace "*" "\\*" }}\n{{ end }}\n🔹 *Status:* {{ .Status | upper }}\n🔹 *Severity:* {{ .CommonLabels.severity | default "unknown" | replace "_" "\\_" | replace "*" "\\*" }}\n🔹 *Alert Count:* {{ len .Alerts }}\n🔹 *Receiver:* {{ .Receiver | replace "_" "\\_" | replace "*" "\\*" }}{{ if .ExternalURL }}\n\n[🔗 View in Alertmanager]({{ .ExternalURL }}){{ end }}{{ if gt (len .Alerts) 1 }}\n\n*Alerts:*{{ range $i, $alert := .Alerts }}\n{{ add $i 1 }}. {{ $alert.Labels.alertname | default "Unknown" | replace "_" "\\_" | replace "*" "\\*" }}{{ if $alert.Labels.instance }} ({{ $alert.Labels.instance | replace "_" "\\_" | replace "*" "\\*" }}){{ end }}{{ end }}{{ end }}"
+  "text": "{{ if eq .Status "firing" }}[ALERT]{{ else }}[OK]{{ end }} *{{ .GroupLabels.alertname | replace "_" "\\_" | replace "*" "\\*" }}*\n\n{{ if .CommonAnnotations.summary }}{{ .CommonAnnotations.summary | replace "_" "\\_" | replace "*" "\\*" }}\n{{ end }}{{ if .CommonAnnotations.description }}{{ .CommonAnnotations.description | replace "_" "\\_" | replace "*" "\\*" }}\n{{ end }}\n*Status:* {{ .Status | upper }}\n*Severity:* {{ .CommonLabels.severity | default "unknown" | replace "_" "\\_" | replace "*" "\\*" }}\n*Alert Count:* {{ len .Alerts }}\n*Receiver:* {{ .Receiver | replace "_" "\\_" | replace "*" "\\*" }}{{ if .ExternalURL }}\n\n[View in Alertmanager]({{ .ExternalURL }}){{ end }}{{ if gt (len .Alerts) 1 }}\n\n*Alerts:*{{ range $i, $alert := .Alerts }}\n{{ add $i 1 }}. {{ $alert.Labels.alertname | default "Unknown" | replace "_" "\\_" | replace "*" "\\*" }}{{ if $alert.Labels.instance }} ({{ $alert.Labels.instance | replace "_" "\\_" | replace "*" "\\*" }}){{ end }}{{ end }}{{ end }}"
 }`
 
 // DiscordWebhookTemplate is an example template for Discord webhook
@@ -154,7 +155,7 @@ const DiscordWebhookTemplate = `{
   "username": "Alertmanager",
   "avatar_url": "https://prometheus.io/assets/prometheus_logo_grey.svg",
   "embeds": [{
-    "title": "{{ if eq .Status "firing" }}🚨{{ else }}✅{{ end }} {{ .GroupLabels.alertname }}",
+    "title": "{{ if eq .Status "firing" }}[ALERT]{{ else }}[OK]{{ end }} {{ .GroupLabels.alertname }}",
     "description": "{{ .CommonAnnotations.summary }}",
     "color": {{ if eq .Status "firing" }}15158332{{ else }}3066993{{ end }},
     "fields": [
@@ -304,7 +305,7 @@ const MattermostWebhookTemplate = `{
   "channel": "${MATTERMOST_CHANNEL}",
   "username": "Alertmanager",
   "icon_url": "https://prometheus.io/assets/prometheus_logo_grey.svg",
-  "text": "{{ if eq .Status "firing" }}🚨 **FIRING**{{ else }}✅ **RESOLVED**{{ end }} - {{ .GroupLabels.alertname }}",
+  "text": "{{ if eq .Status "firing" }}**FIRING**{{ else }}**RESOLVED**{{ end }} - {{ .GroupLabels.alertname }}",
   "attachments": [
     {
       "color": "{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}",
@@ -350,7 +351,7 @@ const RocketChatWebhookTemplate = `{
   "channel": "${ROCKETCHAT_CHANNEL}",
   "username": "Alertmanager",
   "avatar": "https://prometheus.io/assets/prometheus_logo_grey.svg",
-  "text": "{{ if eq .Status "firing" }}🚨 **FIRING**{{ else }}✅ **RESOLVED**{{ end }} - {{ .GroupLabels.alertname }}",
+  "text": "{{ if eq .Status "firing" }}**FIRING**{{ else }}**RESOLVED**{{ end }} - {{ .GroupLabels.alertname }}",
   "attachments": [
     {
       "color": "{{ if eq .Status "firing" }}#ff0000{{ else }}#36a64f{{ end }}",
@@ -435,7 +436,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "flock":
 		return &config.DestinationConfig{
 			Name:        "flock-alerts-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://api.flock.com/hooks/sendMessage/${FLOCK_WEBHOOK_ID}",
 			Format:      "json",
 			Engine:      "jq",
@@ -445,7 +446,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "jenkins":
 		return &config.DestinationConfig{
 			Name:        "jenkins-trigger-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://jenkins.example.com/generic-webhook-trigger/invoke?token=${JENKINS_TOKEN}",
 			Format:      "json",
 			Engine:      "jq",
@@ -458,7 +459,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "jenkins-build", "jenkins-buildwithparameters":
 		return &config.DestinationConfig{
 			Name:        "jenkins-build-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://${JENKINS_USER}:${JENKINS_API_TOKEN}@jenkins.example.com/job/${JENKINS_JOB_NAME}/buildWithParameters",
 			Format:      "form",
 			Engine:      "jq",
@@ -471,7 +472,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "slack":
 		return &config.DestinationConfig{
 			Name:        "slack-alerts-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://hooks.slack.com/services/${SLACK_WEBHOOK_ID}",
 			Format:      "json",
 			Engine:      "jq",
@@ -481,7 +482,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "telegram":
 		return &config.DestinationConfig{
 			Name:        "telegram-bot-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage",
 			Format:      "json",
 			Engine:      "jq",
@@ -491,7 +492,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "discord":
 		return &config.DestinationConfig{
 			Name:        "discord-webhook-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "${DISCORD_WEBHOOK_URL}",
 			Format:      "json",
 			Engine:      "jq",
@@ -501,7 +502,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "mattermost":
 		return &config.DestinationConfig{
 			Name:        "mattermost-alerts-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "${MATTERMOST_WEBHOOK_URL}",
 			Format:      "json",
 			Engine:      "jq",
@@ -511,7 +512,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "rocketchat", "rocket-chat":
 		return &config.DestinationConfig{
 			Name:        "rocketchat-alerts-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "${ROCKETCHAT_WEBHOOK_URL}",
 			Format:      "json",
 			Engine:      "jq",
@@ -521,7 +522,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "splunk":
 		return &config.DestinationConfig{
 			Name:        "splunk-hec-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://splunk.example.com:8088/services/collector/event",
 			Format:      "json",
 			Engine:      "jq",
@@ -534,7 +535,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "victorialogs", "victoria-logs", "vlogs":
 		return &config.DestinationConfig{
 			Name:        "victoria-logs-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://victorialogs.example.com:9428/insert/jsonline",
 			Format:      "json",
 			Engine:      "jq",
@@ -548,7 +549,7 @@ func GetExampleJQConfig(service string) *config.DestinationConfig {
 	case "github", "github-actions", "github-action":
 		return &config.DestinationConfig{
 			Name:        "github-actions-jq",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches",
 			Format:      "json",
 			Engine:      "jq",
@@ -571,7 +572,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "flock":
 		return &config.DestinationConfig{
 			Name:        "flock-alerts",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://api.flock.com/hooks/sendMessage/${FLOCK_WEBHOOK_ID}",
 			Format:      "json",
 			Engine:      "go-template",
@@ -581,7 +582,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "jenkins":
 		return &config.DestinationConfig{
 			Name:        "jenkins-trigger",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://jenkins.example.com/generic-webhook-trigger/invoke?token=${JENKINS_TOKEN}",
 			Format:      "json",
 			Engine:      "go-template",
@@ -594,7 +595,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "jenkins-build", "jenkins-buildwithparameters":
 		return &config.DestinationConfig{
 			Name:        "jenkins-build",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://${JENKINS_USER}:${JENKINS_API_TOKEN}@jenkins.example.com/job/${JENKINS_JOB_NAME}/buildWithParameters",
 			Format:      "form",
 			Engine:      "go-template",
@@ -607,7 +608,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "slack":
 		return &config.DestinationConfig{
 			Name:        "slack-alerts",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://hooks.slack.com/services/${SLACK_WEBHOOK_ID}",
 			Format:      "json",
 			Engine:      "go-template",
@@ -617,7 +618,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "telegram":
 		return &config.DestinationConfig{
 			Name:        "telegram-bot",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage",
 			Format:      "json",
 			Engine:      "go-template",
@@ -627,7 +628,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "discord":
 		return &config.DestinationConfig{
 			Name:        "discord-webhook",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "${DISCORD_WEBHOOK_URL}",
 			Format:      "json",
 			Engine:      "go-template",
@@ -637,7 +638,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "splunk":
 		return &config.DestinationConfig{
 			Name:        "splunk-hec",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://splunk.example.com:8088/services/collector/event",
 			Format:      "json",
 			Engine:      "go-template",
@@ -650,7 +651,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "victorialogs", "victoria-logs", "vlogs":
 		return &config.DestinationConfig{
 			Name:        "victoria-logs",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://victorialogs.example.com:9428/insert/jsonline",
 			Format:      "json",
 			Engine:      "go-template",
@@ -664,7 +665,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "github", "github-actions", "github-action":
 		return &config.DestinationConfig{
 			Name:        "github-actions",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches",
 			Format:      "json",
 			Engine:      "go-template",
@@ -679,7 +680,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "mattermost":
 		return &config.DestinationConfig{
 			Name:        "mattermost-alerts",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "${MATTERMOST_WEBHOOK_URL}",
 			Format:      "json",
 			Engine:      "go-template",
@@ -689,7 +690,7 @@ func GetExampleConfig(service string) *config.DestinationConfig {
 	case "rocketchat", "rocket-chat":
 		return &config.DestinationConfig{
 			Name:        "rocketchat-alerts",
-			Method:      "POST",
+			Method:      http.MethodPost,
 			URL:         "${ROCKETCHAT_WEBHOOK_URL}",
 			Format:      "json",
 			Engine:      "go-template",

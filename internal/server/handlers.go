@@ -112,19 +112,19 @@ var startTime = time.Now()
 // RegisterAPIRoutes registers API routes with the router
 func (s *Server) RegisterAPIRoutes(router *mux.Router) {
 	// Destination management endpoints
-	router.HandleFunc("/destinations", s.handleListDestinations).Methods("GET")
-	router.HandleFunc("/destinations/{name}", s.handleGetDestination).Methods("GET")
+	router.HandleFunc("/destinations", s.handleListDestinations).Methods(http.MethodGet)
+	router.HandleFunc("/destinations/{name}", s.handleGetDestination).Methods(http.MethodGet)
 
 	// Test and emulation endpoints
-	router.HandleFunc("/test/{destination}", s.handleTestDestination).Methods("POST")
-	router.HandleFunc("/emulate/{destination}", s.handleEmulateDestination).Methods("POST")
+	router.HandleFunc("/test/{destination}", s.handleTestDestination).Methods(http.MethodPost)
+	router.HandleFunc("/emulate/{destination}", s.handleEmulateDestination).Methods(http.MethodPost)
 
 	// System information endpoints
-	router.HandleFunc("/info", s.handleSystemInfo).Methods("GET")
-	router.HandleFunc("/health", s.handleAPIHealth).Methods("GET")
+	router.HandleFunc("/info", s.handleSystemInfo).Methods(http.MethodGet)
+	router.HandleFunc("/health", s.handleAPIHealth).Methods(http.MethodGet)
 
 	// Configuration endpoints
-	router.HandleFunc("/config/validate", s.handleValidateConfig).Methods("POST")
+	router.HandleFunc("/config/validate", s.handleValidateConfig).Methods(http.MethodPost)
 }
 
 // Destination management handlers

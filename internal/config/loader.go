@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/vitalvas/gokit/xconfig"
@@ -58,7 +59,7 @@ func (c *Config) setDefaults() {
 
 		// Default HTTP method
 		if dest.Method == "" {
-			dest.Method = "POST"
+			dest.Method = http.MethodPost
 		}
 
 		// Default format

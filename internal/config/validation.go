@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
@@ -41,7 +44,13 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("destination %s: url is required", dest.Name)
 		}
 
-		validMethods := map[string]bool{"GET": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true}
+		validMethods := map[string]bool{
+			http.MethodGet:    true,
+			http.MethodPost:   true,
+			http.MethodPut:    true,
+			http.MethodPatch:  true,
+			http.MethodDelete: true,
+		}
 		if !validMethods[dest.Method] {
 			return fmt.Errorf("destination %s: invalid method %s", dest.Name, dest.Method)
 		}

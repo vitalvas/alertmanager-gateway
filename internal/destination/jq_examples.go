@@ -6,15 +6,15 @@ package destination
 const (
 	// FlockWebhookJQTemplate is the jq equivalent of FlockWebhookTemplate
 	FlockWebhookJQTemplate = `{
-  text: ("🚨 Alert: " + .groupLabels.alertname + " [" + (.status | ascii_upcase) + "]"),
+  text: ("Alert: " + .groupLabels.alertname + " [" + (.status | ascii_upcase) + "]"),
   attachments: [{
     title: .commonAnnotations.summary,
     description: ([.alerts[] | if .annotations.description then ("• " + .annotations.description) else empty end] | join("\n")),
     color: (if .status == "firing" then "#ff0000" else "#36a64f" end),
     views: {
       flockml: ("<flockml>" + 
-        (if .commonAnnotations.runbook_url then ("<a href=\"" + .commonAnnotations.runbook_url + "\">📖 Runbook</a> | ") else "" end) +
-        "<a href=\"" + .externalURL + "\">🔗 Alertmanager</a></flockml>")
+        (if .commonAnnotations.runbook_url then ("<a href=\"" + .commonAnnotations.runbook_url + "\">Runbook</a> | ") else "" end) +
+        "<a href=\"" + .externalURL + "\">Alertmanager</a></flockml>")
     },
     forwards: true
   }],
@@ -125,15 +125,15 @@ const (
   parse_mode: "Markdown",
   disable_web_page_preview: true,
   text: (
-    (if .status == "firing" then "🚨" else "✅" end) + " *" + 
+    (if .status == "firing" then "[ALERT]" else "[OK]" end) + " *" + 
     (.groupLabels.alertname | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) + "*\n\n" +
-    (if .commonAnnotations.summary then ("📝 " + (.commonAnnotations.summary | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) + "\n") else "" end) +
-    (if .commonAnnotations.description then ("📋 " + (.commonAnnotations.description | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) + "\n") else "" end) +
-    "\n🔹 *Status:* " + (.status | ascii_upcase) + 
-    "\n🔹 *Severity:* " + ((.commonLabels.severity // "unknown") | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) +
-    "\n🔹 *Alert Count:* " + (.alerts | length | tostring) +
-    "\n🔹 *Receiver:* " + (.receiver | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) +
-    (if .externalURL then ("\n\n[🔗 View in Alertmanager](" + .externalURL + ")") else "" end) +
+    (if .commonAnnotations.summary then ("" + (.commonAnnotations.summary | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) + "\n") else "" end) +
+    (if .commonAnnotations.description then ("" + (.commonAnnotations.description | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) + "\n") else "" end) +
+    "\n*Status:* " + (.status | ascii_upcase) + 
+    "\n*Severity:* " + ((.commonLabels.severity // "unknown") | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) +
+    "\n*Alert Count:* " + (.alerts | length | tostring) +
+    "\n*Receiver:* " + (.receiver | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) +
+    (if .externalURL then ("\n\n[View in Alertmanager](" + .externalURL + ")") else "" end) +
     (if (.alerts | length) > 1 then 
       ("\n\n*Alerts:*" + 
        ([.alerts[] | ". " + ((.labels.alertname // "Unknown") | gsub("_"; "\\\\_") | gsub("\\*"; "\\\\*")) + 
@@ -148,7 +148,7 @@ const (
   username: "Alertmanager",
   avatar_url: "https://prometheus.io/assets/prometheus_logo_grey.svg",
   embeds: [{
-    title: ((if .status == "firing" then "🚨" else "✅" end) + " " + .groupLabels.alertname),
+    title: ((if .status == "firing" then "[ALERT]" else "[OK]" end) + " " + .groupLabels.alertname),
     description: .commonAnnotations.summary,
     color: (if .status == "firing" then 15158332 else 3066993 end),
     fields: [
@@ -184,7 +184,7 @@ const (
   channel: "${MATTERMOST_CHANNEL}",
   username: "Alertmanager",
   icon_url: "https://prometheus.io/assets/prometheus_logo_grey.svg",
-  text: ((if .status == "firing" then "🚨 **FIRING**" else "✅ **RESOLVED**" end) + " - " + .groupLabels.alertname),
+  text: ((if .status == "firing" then "**FIRING**" else "**RESOLVED**" end) + " - " + .groupLabels.alertname),
   attachments: [{
     color: (if .status == "firing" then "danger" else "good" end),
     title: .commonAnnotations.summary,
@@ -226,7 +226,7 @@ const (
   channel: "${ROCKETCHAT_CHANNEL}",
   username: "Alertmanager", 
   avatar: "https://prometheus.io/assets/prometheus_logo_grey.svg",
-  text: ((if .status == "firing" then "🚨 **FIRING**" else "✅ **RESOLVED**" end) + " - " + .groupLabels.alertname),
+  text: ((if .status == "firing" then "**FIRING**" else "**RESOLVED**" end) + " - " + .groupLabels.alertname),
   attachments: [{
     color: (if .status == "firing" then "#ff0000" else "#36a64f" end),
     title: .commonAnnotations.summary,
@@ -422,7 +422,7 @@ const (
 
 	// JQCustomFormatExample creates a custom formatted message
 	JQCustomFormatExample = `{
-  message: ("🚨 " + (.alerts | length | tostring) + " alerts are " + .status),
+  message: ((.alerts | length | tostring) + " alerts are " + .status),
   details: {
     receiver: .receiver,
     group_key: .groupKey,
