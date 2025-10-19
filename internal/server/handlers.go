@@ -312,7 +312,7 @@ func (s *Server) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 			DestinationsCount:        len(s.config.Destinations),
 			EnabledDestinationsCount: s.countEnabledDestinations(),
 			AuthEnabled:              s.config.Server.Auth.Enabled,
-			ServerPort:               s.config.Server.Port,
+			ServerAddress:            s.config.Server.Address,
 			LogLevel:                 "info", // TODO: Get from logger
 		},
 	}

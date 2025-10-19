@@ -10,8 +10,7 @@ type Config struct {
 
 // ServerConfig represents server configuration
 type ServerConfig struct {
-	Host         string        `yaml:"host"`
-	Port         int           `yaml:"port"`
+	Address      string        `yaml:"address"`
 	ReadTimeout  time.Duration `yaml:"read_timeout"`
 	WriteTimeout time.Duration `yaml:"write_timeout"`
 	Auth         AuthConfig    `yaml:"auth"`

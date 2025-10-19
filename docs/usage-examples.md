@@ -2,16 +2,6 @@
 
 This guide provides practical examples of using the Alertmanager Gateway in various scenarios.
 
-## Table of Contents
-
-- [Basic Setup](#basic-setup)
-- [Template Examples](#template-examples)
-- [JQ Transform Examples](#jq-transform-examples)
-- [Alert Routing](#alert-routing)
-- [Testing and Validation](#testing-and-validation)
-- [Production Patterns](#production-patterns)
-- [Integration Recipes](#integration-recipes)
-
 ## Basic Setup
 
 ### Simple Slack Integration

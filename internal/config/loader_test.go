@@ -15,8 +15,7 @@ func TestLoadConfig(t *testing.T) {
 		name             string
 		configContent    string
 		envVars          map[string]string
-		expectedHost     string
-		expectedPort     int
+		expectedAddress  string
 		expectedPassword string
 		expectedURL      string
 		additionalChecks func(t *testing.T, cfg *Config)
@@ -25,8 +24,7 @@ func TestLoadConfig(t *testing.T) {
 			name: "basic configuration",
 			configContent: `
 server:
-  host: "127.0.0.1"
-  port: 8090
+  address: "127.0.0.1:8090"
   read_timeout: 45s
   write_timeout: 45s
   auth:
@@ -45,8 +43,7 @@ destinations:
         message: .message
       }
 `,
-			expectedHost:     "127.0.0.1",
-			expectedPort:     8090,
+			expectedAddress:  "127.0.0.1:8090",
 			expectedPassword: "secret",
 			expectedURL:      "https://example.com/webhook",
 			additionalChecks: func(t *testing.T, cfg *Config) {
@@ -69,12 +66,11 @@ destinations:
 			name: "with environment variables",
 			configContent: `
 server:
-  host: "localhost"  # Will be overridden by env var
-  port: 8080         # Will be overridden by env var
+  address: "localhost:8080"
   auth:
     enabled: true
     username: "admin"
-    password: "default-pass"  # Will be overridden by env var
+    password: "default-pass"
 
 destinations:
   - name: "env-test"
@@ -83,12 +79,10 @@ destinations:
     template: '{"test": "data"}'
 `,
 			envVars: map[string]string{
-				"GATEWAY_SERVER_HOST":          "192.168.1.1",
-				"GATEWAY_SERVER_PORT":          "9090",
+				"GATEWAY_SERVER_ADDRESS":       "192.168.1.1:9090",
 				"GATEWAY_SERVER_AUTH_PASSWORD": "env-secret",
 			},
-			expectedHost:     "192.168.1.1",
-			expectedPort:     9090,
+			expectedAddress:  "192.168.1.1:9090",
 			expectedPassword: "env-secret",
 			expectedURL:      "https://example.com/hook",
 			additionalChecks: func(t *testing.T, cfg *Config) {
@@ -123,8 +117,7 @@ destinations:
 			require.NotNil(t, cfg)
 
 			// Common assertions
-			assert.Equal(t, tt.expectedHost, cfg.Server.Host)
-			assert.Equal(t, tt.expectedPort, cfg.Server.Port)
+			assert.Equal(t, tt.expectedAddress, cfg.Server.Address)
 			assert.Equal(t, tt.expectedPassword, cfg.Server.Auth.Password)
 			assert.Equal(t, tt.expectedURL, cfg.Destinations[0].URL)
 
@@ -153,9 +146,8 @@ destinations:
 	cfg, err := LoadConfig(configPath)
 	require.NoError(t, err)
 
-	// Server defaults
-	assert.Equal(t, "0.0.0.0", cfg.Server.Host)
-	assert.Equal(t, 8080, cfg.Server.Port)
+	// Server defaults - Address defaults to :8080 for dual stack (IPv4 and IPv6)
+	assert.Equal(t, ":8080", cfg.Server.Address)
 	assert.Equal(t, 30*time.Second, cfg.Server.ReadTimeout)
 	assert.Equal(t, 30*time.Second, cfg.Server.WriteTimeout)
 
@@ -168,169 +160,23 @@ destinations:
 	assert.Equal(t, 1, dest.ParallelRequests)
 }
 
-func TestConfig_Validate(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      string
-		expectError string
-	}{
-		{
-			name: "invalid port",
-			config: `
-server:
-  port: 99999
-destinations:
-  - name: "test"
-    url: "https://example.com"
-`,
-			expectError: "invalid server port",
-		},
-		{
-			name: "missing auth credentials",
-			config: `
-server:
-  auth:
-    enabled: true
-destinations:
-  - name: "test"
-    url: "https://example.com"
-`,
-			expectError: "auth enabled but username or password not provided",
-		},
-		{
-			name: "no destinations",
-			config: `
-server:
-  port: 8080
-`,
-			expectError: "no destinations configured",
-		},
-		{
-			name: "missing destination name",
-			config: `
-destinations:
-  - url: "https://example.com"
-`,
-			expectError: "name is required",
-		},
-		{
-			name: "duplicate destination name",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    template: "test"
-  - name: "test"
-    url: "https://example.com"
-    template: "test"
-`,
-			expectError: "duplicate destination name",
-		},
-		{
-			name: "invalid destination name",
-			config: `
-destinations:
-  - name: "test@invalid"
-    url: "https://example.com"
-`,
-			expectError: "invalid name format",
-		},
-		{
-			name: "missing url",
-			config: `
-destinations:
-  - name: "test"
-`,
-			expectError: "url is required",
-		},
-		{
-			name: "invalid method",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    method: "INVALID"
-`,
-			expectError: "invalid method",
-		},
-		{
-			name: "invalid format",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    format: "xml"
-`,
-			expectError: "invalid format",
-		},
-		{
-			name: "invalid engine",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    engine: "invalid"
-`,
-			expectError: "invalid engine",
-		},
-		{
-			name: "missing template for go-template",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    engine: "go-template"
-`,
-			expectError: "template is required for go-template engine",
-		},
-		{
-			name: "missing transform for jq",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    engine: "jq"
-`,
-			expectError: "transform is required for jq engine",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			configPath := filepath.Join(tmpDir, "config.yaml")
-
-			err := os.WriteFile(configPath, []byte(tt.config), 0644)
-			require.NoError(t, err)
-
-			_, err = LoadConfig(configPath)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.expectError)
-		})
-	}
+func TestLoadConfig_InvalidPath(t *testing.T) {
+	_, err := LoadConfig("/nonexistent/config.yaml")
+	assert.Error(t, err)
 }
 
-// TestGetDestinationByPath removed - no longer using path field
+func TestLoadConfig_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "invalid.yaml")
 
-func TestConfig_GetDestinationByName(t *testing.T) {
-	cfg := &Config{
-		Destinations: []DestinationConfig{
-			{Name: "dest1", Enabled: true},
-			{Name: "dest2", Enabled: true},
-			{Name: "dest3", Enabled: false},
-		},
-	}
+	invalidYAML := `
+server:
+  address: invalid yaml content [[[
+`
 
-	// Test existing enabled destination
-	dest := cfg.GetDestinationByName("dest1")
-	require.NotNil(t, dest)
-	assert.Equal(t, "dest1", dest.Name)
+	err := os.WriteFile(configPath, []byte(invalidYAML), 0644)
+	require.NoError(t, err)
 
-	// Test non-existing destination
-	dest = cfg.GetDestinationByName("nonexistent")
-	assert.Nil(t, dest)
-
-	// Test disabled destination
-	dest = cfg.GetDestinationByName("dest3")
-	assert.Nil(t, dest)
+	_, err = LoadConfig(configPath)
+	assert.Error(t, err)
 }

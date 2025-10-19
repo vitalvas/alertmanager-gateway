@@ -16,8 +16,7 @@ import (
 func TestHealthEndpoints(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{
 			{Name: "test", URL: "http://example.com", Enabled: true, Engine: "go-template", Template: `{"status": "{{.Status}}"}`, Method: "POST", Format: "json"},
@@ -88,8 +87,7 @@ func TestHealthEndpoints(t *testing.T) {
 func TestHealthReadyNoDestinations(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}
@@ -115,8 +113,7 @@ func TestHealthReadyNoDestinations(t *testing.T) {
 func TestMetricsEndpoint(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}
@@ -138,8 +135,7 @@ func TestMetricsEndpoint(t *testing.T) {
 func TestListDestinations(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{
 			{
@@ -190,8 +186,7 @@ func TestListDestinations(t *testing.T) {
 func TestGetDestination(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{
 			{
@@ -236,8 +231,7 @@ func TestGetDestination(t *testing.T) {
 func TestGetDestinationNotFound(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}
@@ -264,8 +258,7 @@ func TestGetDestinationNotFound(t *testing.T) {
 func TestBasicAuth(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 			Auth: config.AuthConfig{
 				Enabled:  true,
 				Username: "testuser",
@@ -335,8 +328,7 @@ func TestBasicAuth(t *testing.T) {
 func TestAPIAuth(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 			Auth: config.AuthConfig{
 				Enabled:     true,
 				Username:    "webhook",
@@ -396,8 +388,7 @@ func TestAPIAuth(t *testing.T) {
 func TestNotFound(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}
@@ -424,8 +415,7 @@ func TestNotFound(t *testing.T) {
 func TestLoggingMiddleware(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}
@@ -458,8 +448,7 @@ func TestLoggingMiddleware(t *testing.T) {
 func TestRecoveryMiddleware(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}
@@ -499,8 +488,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 func TestSecurityHeaders(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Host: "localhost",
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{},
 	}

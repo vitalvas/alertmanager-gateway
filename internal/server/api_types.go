@@ -126,7 +126,7 @@ type ConfigInfo struct {
 	DestinationsCount        int    `json:"destinations_count"`
 	EnabledDestinationsCount int    `json:"enabled_destinations_count"`
 	AuthEnabled              bool   `json:"auth_enabled"`
-	ServerPort               int    `json:"server_port"`
+	ServerAddress            string `json:"server_address"`
 	LogLevel                 string `json:"log_level"`
 }
 

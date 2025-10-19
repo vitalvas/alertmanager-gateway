@@ -19,8 +19,7 @@ Universal adapter for Prometheus Alertmanager webhooks that transforms and route
 
 ```yaml
 server:
-  host: "0.0.0.0"
-  port: 8080
+  address: ":8080"
 
 destinations:
   - name: "slack"

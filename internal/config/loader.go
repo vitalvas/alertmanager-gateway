@@ -37,11 +37,9 @@ func LoadConfig(path string) (*Config, error) {
 
 // setDefaults sets default values for configuration
 func (c *Config) setDefaults() {
-	if c.Server.Host == "" {
-		c.Server.Host = "0.0.0.0"
-	}
-	if c.Server.Port == 0 {
-		c.Server.Port = 8080
+	// Address defaults to :8080 for dual stack (IPv4 and IPv6)
+	if c.Server.Address == "" {
+		c.Server.Address = ":8080"
 	}
 	if c.Server.ReadTimeout == 0 {
 		c.Server.ReadTimeout = 30 * time.Second

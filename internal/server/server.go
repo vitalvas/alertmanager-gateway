@@ -49,7 +49,7 @@ func New(cfg *config.Config, logger *logrus.Logger) (*Server, error) {
 
 	// Create HTTP server
 	s.httpServer = &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Addr:         cfg.Server.Address,
 		Handler:      s.router,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,

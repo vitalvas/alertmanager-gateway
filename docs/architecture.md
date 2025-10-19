@@ -88,8 +88,7 @@ sequenceDiagram
 ```yaml
 # config.yaml
 server:
-  host: "0.0.0.0"
-  port: 8080
+  address: ":8080"
   read_timeout: 30s
   write_timeout: 30s
 

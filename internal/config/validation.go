@@ -5,8 +5,8 @@ import "fmt"
 // Validate validates the configuration
 func (c *Config) Validate() error {
 	// Validate server config
-	if c.Server.Port < 1 || c.Server.Port > 65535 {
-		return fmt.Errorf("invalid server port: %d", c.Server.Port)
+	if c.Server.Address == "" {
+		return fmt.Errorf("server address is required")
 	}
 
 	if c.Server.Auth.Enabled {

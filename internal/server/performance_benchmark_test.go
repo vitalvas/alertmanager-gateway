@@ -27,7 +27,7 @@ func BenchmarkWebhookProcessing(b *testing.B) {
 
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{
 			{
@@ -100,7 +100,7 @@ func BenchmarkWebhookProcessingParallel(b *testing.B) {
 
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Port: 8080,
+			Address: ":8080",
 		},
 		Destinations: []config.DestinationConfig{
 			{
@@ -380,7 +380,7 @@ func BenchmarkAlertSplitting(b *testing.B) {
 
 	b.Run("NoSplit", func(b *testing.B) {
 		cfg := &config.Config{
-			Server: config.ServerConfig{Port: 8080},
+			Server: config.ServerConfig{Address: ":8080"},
 			Destinations: []config.DestinationConfig{
 				{
 					Name:        "no-split",
@@ -410,7 +410,7 @@ func BenchmarkAlertSplitting(b *testing.B) {
 
 	b.Run("Sequential", func(b *testing.B) {
 		cfg := &config.Config{
-			Server: config.ServerConfig{Port: 8080},
+			Server: config.ServerConfig{Address: ":8080"},
 			Destinations: []config.DestinationConfig{
 				{
 					Name:        "sequential",
@@ -440,7 +440,7 @@ func BenchmarkAlertSplitting(b *testing.B) {
 
 	b.Run("Parallel", func(b *testing.B) {
 		cfg := &config.Config{
-			Server: config.ServerConfig{Port: 8080},
+			Server: config.ServerConfig{Address: ":8080"},
 			Destinations: []config.DestinationConfig{
 				{
 					Name:             "parallel",
@@ -480,7 +480,7 @@ func BenchmarkConcurrentWebhooks(b *testing.B) {
 	defer mockDest.Close()
 
 	cfg := &config.Config{
-		Server: config.ServerConfig{Port: 8080},
+		Server: config.ServerConfig{Address: ":8080"},
 		Destinations: []config.DestinationConfig{
 			{
 				Name:     "concurrent",

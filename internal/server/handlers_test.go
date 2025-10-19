@@ -455,7 +455,7 @@ func TestHandleSystemInfo(t *testing.T) {
 			{Name: "dest3", URL: "http://example.com", Engine: "go-template", Template: "{{.Status}}", Enabled: true},
 		},
 		Server: config.ServerConfig{
-			Port: 8080,
+			Address: ":8080",
 			Auth: config.AuthConfig{
 				Enabled: true,
 			},
@@ -484,7 +484,7 @@ func TestHandleSystemInfo(t *testing.T) {
 	assert.Greater(t, response.MemoryAlloc, uint64(0))
 	assert.Equal(t, 3, response.Config.DestinationsCount)
 	assert.Equal(t, 2, response.Config.EnabledDestinationsCount)
-	assert.Equal(t, 8080, response.Config.ServerPort)
+	assert.Equal(t, ":8080", response.Config.ServerAddress)
 	assert.True(t, response.Config.AuthEnabled)
 }
 
