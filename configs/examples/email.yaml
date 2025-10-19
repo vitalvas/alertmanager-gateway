@@ -57,9 +57,4 @@ destinations:
       Authorization: "Bearer ${env:SENDGRID_API_KEY}"
       Content-Type: "application/json"
     enabled: true
-    retry:
-      max_attempts: 3
-      backoff: exponential
-      initial_delay: 2s
-      max_delay: 30s
 

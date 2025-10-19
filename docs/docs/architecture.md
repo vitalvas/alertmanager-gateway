@@ -804,17 +804,6 @@ graph TB
 
 ## Error Handling
 
-### Retry Logic
-```yaml
-destinations:
-  - name: "example"
-    retry:
-      max_attempts: 3
-      backoff: "exponential"
-      initial_delay: "1s"
-      max_delay: "30s"
-```
-
 ### Failure Modes
 1. **Destination Unreachable**: Log error, return 502 to Alertmanager
 2. **Template Error**: Log error, return 500

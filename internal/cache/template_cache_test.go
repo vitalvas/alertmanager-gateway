@@ -99,7 +99,6 @@ func TestTemplateCache_Operations(t *testing.T) {
 		assert.Equal(t, 3, stats.TotalSize)
 	})
 
-
 	t.Run("update", func(t *testing.T) {
 		cache := NewTemplateCache(5, 1*time.Hour)
 
@@ -117,7 +116,6 @@ func TestTemplateCache_Operations(t *testing.T) {
 		stats := cache.Stats()
 		assert.Equal(t, 1, stats.TotalSize)
 	})
-
 
 	t.Run("delete", func(t *testing.T) {
 		cache := NewTemplateCache(5, 1*time.Hour)
@@ -201,7 +199,6 @@ func TestTemplateCache_LRU(t *testing.T) {
 		assert.Equal(t, 3, stats.TotalSize)
 	})
 
-
 	t.Run("access", func(t *testing.T) {
 		cache := NewTemplateCache(3, 1*time.Hour)
 
@@ -226,7 +223,6 @@ func TestTemplateCache_LRU(t *testing.T) {
 	})
 }
 
-
 func TestTemplateCache_TTL(t *testing.T) {
 	t.Run("expiration", func(t *testing.T) {
 		cache := NewTemplateCache(5, 100*time.Millisecond)
@@ -248,7 +244,6 @@ func TestTemplateCache_TTL(t *testing.T) {
 		assert.Equal(t, int64(1), stats.Hits)
 		assert.Equal(t, int64(1), stats.Misses)
 	})
-
 
 	t.Run("purge", func(t *testing.T) {
 		cache := NewTemplateCache(5, 100*time.Millisecond)
@@ -280,7 +275,6 @@ func TestTemplateCache_TTL(t *testing.T) {
 		stats := cache.Stats()
 		assert.Equal(t, 1, stats.TotalSize)
 	})
-
 
 	t.Run("purge with zero TTL", func(t *testing.T) {
 		cache := NewTemplateCache(5, 0) // No TTL
@@ -322,7 +316,6 @@ func TestTemplateCache_EvictFunc(t *testing.T) {
 		assert.Equal(t, []interface{}{"value1", "value2"}, evictedValues)
 	})
 
-
 	t.Run("eviction callback on clear", func(t *testing.T) {
 		cache := NewTemplateCache(5, 1*time.Hour)
 
@@ -363,7 +356,6 @@ func TestTemplateCache_Cleanup(t *testing.T) {
 		close(done)
 	})
 
-
 	t.Run("cleanup task with zero interval", func(t *testing.T) {
 		cache := NewTemplateCache(5, 1*time.Hour)
 
@@ -391,7 +383,6 @@ func TestTemplateCache_Stats(t *testing.T) {
 		stats := cache.Stats()
 		assert.Equal(t, int64(3), stats.Hits)
 	})
-
 
 	t.Run("concurrent access", func(t *testing.T) {
 		cache := NewTemplateCache(100, 1*time.Hour)
@@ -433,7 +424,6 @@ func TestTemplateCache_Stats(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, "value", val)
 	})
-
 
 	t.Run("detailed statistics", func(t *testing.T) {
 		cache := NewTemplateCache(3, 1*time.Hour)

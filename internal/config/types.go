@@ -41,14 +41,6 @@ type DestinationConfig struct {
 	BatchSize        int               `yaml:"batch_size"`
 	ParallelRequests int               `yaml:"parallel_requests"`
 	Enabled          bool              `yaml:"enabled"`
-	Retry            RetryConfig       `yaml:"retry"`
-}
-
-// RetryConfig represents retry configuration
-type RetryConfig struct {
-	MaxAttempts int    `yaml:"max_attempts"`
-	Backoff     string `yaml:"backoff"`
-	PerAlert    bool   `yaml:"per_alert"`
 }
 
 // GetDestinationByName returns a destination configuration by name (only enabled destinations)

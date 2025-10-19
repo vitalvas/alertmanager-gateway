@@ -132,13 +132,6 @@ Gateway receives alerts but doesn't forward them to the configured destination.
    echo '{"status":"firing"}' | jq '.status | ascii_upcase'
    ```
 
-5. **Circuit Breaker Open**
-   Check API endpoint:
-   ```bash
-   curl http://gateway:8080/api/v1/destinations/destination-name
-   ```
-   
-   Reset by waiting for timeout or restarting gateway.
 
 ### High Memory Usage
 
@@ -184,7 +177,6 @@ High latency when processing alerts or API calls.
 3. **Network Latency**
    - Check latency to destination endpoints
    - Consider increasing timeouts for slow endpoints
-   - Enable retry with appropriate backoff
 
 4. **Resource Constraints**
    - Check CPU and memory usage
@@ -377,12 +369,6 @@ parallel_requests: 5
 ```
 
 ### Recovery Procedures
-
-#### Reset Circuit Breaker
-
-1. Wait for configured timeout
-2. Or restart the gateway
-3. Or implement admin endpoint to reset
 
 #### Clear Connection Pool
 

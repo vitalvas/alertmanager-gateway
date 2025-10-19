@@ -439,15 +439,6 @@ destinations:
     template: |
       {"alert": "{{.GroupLabels.alertname}}", "status": "{{.Status}}"}
     enabled: true
-    retry:
-      max_attempts: 5
-      backoff: exponential
-      initial_delay: 1s
-      max_delay: 30s
-    circuit_breaker:
-      failure_threshold: 5
-      success_threshold: 2
-      timeout: 60s
 ```
 
 ### Multi-Stage Processing
@@ -641,15 +632,6 @@ destinations:
         "retry_safe": true
       }
     enabled: true
-    retry:
-      max_attempts: 10
-      backoff: exponential
-      initial_delay: 1s
-      max_delay: 300s
-    circuit_breaker:
-      failure_threshold: 5
-      success_threshold: 2
-      timeout: 120s
       half_open_requests: 3
 ```
 

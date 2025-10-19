@@ -157,7 +157,6 @@ func TestJSONFormatter_Properties(t *testing.T) {
 		assert.Equal(t, "application/json", formatter.ContentType())
 	})
 
-
 	t.Run("name", func(t *testing.T) {
 		formatter := NewJSONFormatter()
 		assert.Equal(t, "json", formatter.Name())

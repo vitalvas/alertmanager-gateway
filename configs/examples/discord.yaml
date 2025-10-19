@@ -98,8 +98,3 @@ destinations:
         ]
       }
     enabled: true
-    retry:
-      max_attempts: 3
-      backoff: exponential
-      initial_delay: 1s
-      max_delay: 30s

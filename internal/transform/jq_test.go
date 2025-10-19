@@ -312,7 +312,6 @@ func TestJQEngine_Advanced(t *testing.T) {
 		}
 	})
 
-
 	t.Run("concurrent access", func(t *testing.T) {
 		engine, err := NewJQEngine(".status")
 		require.NoError(t, err)
@@ -337,7 +336,6 @@ func TestJQEngine_Advanced(t *testing.T) {
 			<-done
 		}
 	})
-
 
 	t.Run("complex transformations", func(t *testing.T) {
 		payload := &alertmanager.WebhookPayload{
@@ -418,7 +416,6 @@ func TestJQEngine_Advanced(t *testing.T) {
 		}
 	})
 
-
 	t.Run("error handling", func(t *testing.T) {
 		tests := []struct {
 			name    string
@@ -464,7 +461,6 @@ func TestJQEngine_Advanced(t *testing.T) {
 			})
 		}
 	})
-
 
 	t.Run("performance timeout", func(t *testing.T) {
 		// Create a query that should cause an error (simulating complex processing)

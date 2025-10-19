@@ -18,33 +18,21 @@ type ErrorResponse struct {
 // Destination types
 
 type DestinationSummary struct {
-	Name         string `json:"name"`
-	WebhookURL   string `json:"webhook_url"`
-	Method       string `json:"method"`
-	Format       string `json:"format"`
-	Engine       string `json:"engine"`
-	Enabled      bool   `json:"enabled"`
-	SplitAlerts  bool   `json:"split_alerts"`
-	RetryEnabled bool   `json:"retry_enabled"`
-	AuthEnabled  bool   `json:"auth_enabled"`
-	Description  string `json:"description"`
+	Name        string `json:"name"`
+	WebhookURL  string `json:"webhook_url"`
+	Method      string `json:"method"`
+	Format      string `json:"format"`
+	Engine      string `json:"engine"`
+	Enabled     bool   `json:"enabled"`
+	SplitAlerts bool   `json:"split_alerts"`
+	AuthEnabled bool   `json:"auth_enabled"`
+	Description string `json:"description"`
 }
 
 type ListDestinationsResponse struct {
 	Destinations []DestinationSummary `json:"destinations"`
 	Total        int                  `json:"total"`
 	Timestamp    time.Time            `json:"timestamp"`
-}
-
-type RetryConfig struct {
-	MaxAttempts     int      `json:"max_attempts"`
-	Backoff         string   `json:"backoff"`
-	PerAlert        bool     `json:"per_alert"`
-	BaseDelay       string   `json:"base_delay"`
-	MaxDelay        string   `json:"max_delay"`
-	Multiplier      float64  `json:"multiplier"`
-	JitterEnabled   bool     `json:"jitter_enabled"`
-	RetryableErrors []string `json:"retryable_errors"`
 }
 
 type DestinationDetails struct {
@@ -59,7 +47,6 @@ type DestinationDetails struct {
 	BatchSize        int               `json:"batch_size,omitempty"`
 	ParallelRequests int               `json:"parallel_requests,omitempty"`
 	Headers          map[string]string `json:"headers"`
-	Retry            RetryConfig       `json:"retry"`
 	TemplateSize     int               `json:"template_size,omitempty"`
 	TransformSize    int               `json:"transform_size,omitempty"`
 	HasTemplate      bool              `json:"has_template"`

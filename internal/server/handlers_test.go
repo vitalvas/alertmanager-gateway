@@ -158,11 +158,6 @@ func TestHandleGetDestination(t *testing.T) {
 				SplitAlerts:      true,
 				BatchSize:        5,
 				ParallelRequests: 3,
-				Retry: config.RetryConfig{
-					MaxAttempts: 3,
-					Backoff:     "exponential",
-					PerAlert:    false,
-				},
 			},
 		},
 	}
@@ -197,9 +192,6 @@ func TestHandleGetDestination(t *testing.T) {
 		assert.Equal(t, 3, response.ParallelRequests)
 		assert.Equal(t, 11, response.TemplateSize) // "{{.Status}}" length
 		assert.True(t, response.HasTemplate)
-		assert.Equal(t, 3, response.Retry.MaxAttempts)
-		assert.Equal(t, "exponential", response.Retry.Backoff)
-
 		// Check that sensitive headers are masked
 		assert.Equal(t, "***", response.Headers["Authorization"])
 		assert.Equal(t, "application/json", response.Headers["Content-Type"])

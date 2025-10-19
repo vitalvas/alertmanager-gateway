@@ -86,13 +86,5 @@ func (c *Config) setDefaults() {
 		if dest.ParallelRequests == 0 {
 			dest.ParallelRequests = 1
 		}
-
-		// Default retry config
-		if dest.Retry.MaxAttempts == 0 {
-			dest.Retry.MaxAttempts = 3
-		}
-		if dest.Retry.Backoff == "" {
-			dest.Retry.Backoff = "exponential"
-		}
 	}
 }

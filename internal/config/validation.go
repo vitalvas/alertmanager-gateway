@@ -64,11 +64,6 @@ func (c *Config) Validate() error {
 		if dest.Engine == "jq" && dest.Transform == "" && dest.Template == "" {
 			return fmt.Errorf("destination %s: transform is required for jq engine", dest.Name)
 		}
-
-		validBackoffs := map[string]bool{"exponential": true, "linear": true, "constant": true}
-		if !validBackoffs[dest.Retry.Backoff] {
-			return fmt.Errorf("destination %s: invalid retry backoff %s", dest.Name, dest.Retry.Backoff)
-		}
 	}
 
 	return nil

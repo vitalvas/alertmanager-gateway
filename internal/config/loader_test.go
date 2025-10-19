@@ -12,14 +12,14 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	tests := []struct {
-		name              string
-		configContent     string
-		envVars           map[string]string
-		expectedHost      string
-		expectedPort      int
-		expectedPassword  string
-		expectedURL       string
-		additionalChecks  func(t *testing.T, cfg *Config)
+		name             string
+		configContent    string
+		envVars          map[string]string
+		expectedHost     string
+		expectedPort     int
+		expectedPassword string
+		expectedURL      string
+		additionalChecks func(t *testing.T, cfg *Config)
 	}{
 		{
 			name: "basic configuration",
@@ -54,7 +54,7 @@ destinations:
 				assert.Equal(t, 45*time.Second, cfg.Server.WriteTimeout)
 				assert.True(t, cfg.Server.Auth.Enabled)
 				assert.Equal(t, "test", cfg.Server.Auth.Username)
-				
+
 				require.Len(t, cfg.Destinations, 1)
 				dest := cfg.Destinations[0]
 				assert.Equal(t, "test-dest", dest.Name)
@@ -166,8 +166,6 @@ destinations:
 	assert.Equal(t, "go-template", dest.Engine)
 	assert.True(t, dest.Enabled)
 	assert.Equal(t, 1, dest.ParallelRequests)
-	assert.Equal(t, 3, dest.Retry.MaxAttempts)
-	assert.Equal(t, "exponential", dest.Retry.Backoff)
 }
 
 func TestConfig_Validate(t *testing.T) {
@@ -294,18 +292,6 @@ destinations:
     engine: "jq"
 `,
 			expectError: "transform is required for jq engine",
-		},
-		{
-			name: "invalid backoff",
-			config: `
-destinations:
-  - name: "test"
-    url: "https://example.com"
-    template: "test"
-    retry:
-      backoff: "invalid"
-`,
-			expectError: "invalid retry backoff",
 		},
 	}
 

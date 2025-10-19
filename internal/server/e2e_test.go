@@ -143,10 +143,6 @@ func TestE2ECompleteScenario(t *testing.T) {
 					}]
 				}`,
 				Enabled: true,
-				Retry: config.RetryConfig{
-					MaxAttempts: 3,
-					Backoff:     "exponential",
-				},
 			},
 			{
 				Name:   "splunk-metrics",
@@ -410,10 +406,6 @@ func TestE2EHighLoadScenario(t *testing.T) {
 				Enabled:          true,
 				SplitAlerts:      true,
 				ParallelRequests: 5, // Process 5 alerts in parallel
-				Retry: config.RetryConfig{
-					MaxAttempts: 2,
-					Backoff:     "constant",
-				},
 			},
 		},
 	}

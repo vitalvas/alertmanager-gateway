@@ -138,16 +138,15 @@ func (s *Server) handleListDestinations(w http.ResponseWriter, r *http.Request) 
 	for _, dest := range s.config.Destinations {
 		if dest.Enabled || includeDisabled {
 			summary := DestinationSummary{
-				Name:         dest.Name,
-				WebhookURL:   fmt.Sprintf("/webhook/%s", dest.Name),
-				Method:       dest.Method,
-				Format:       dest.Format,
-				Engine:       dest.Engine,
-				Enabled:      dest.Enabled,
-				SplitAlerts:  dest.SplitAlerts,
-				RetryEnabled: dest.Retry.MaxAttempts > 1,
-				AuthEnabled:  len(dest.Headers) > 0, // Simplified check
-				Description:  generateDestinationDescription(&dest),
+				Name:        dest.Name,
+				WebhookURL:  fmt.Sprintf("/webhook/%s", dest.Name),
+				Method:      dest.Method,
+				Format:      dest.Format,
+				Engine:      dest.Engine,
+				Enabled:     dest.Enabled,
+				SplitAlerts: dest.SplitAlerts,
+				AuthEnabled: len(dest.Headers) > 0, // Simplified check
+				Description: generateDestinationDescription(&dest),
 			}
 			destinations = append(destinations, summary)
 		}
@@ -182,18 +181,8 @@ func (s *Server) handleGetDestination(w http.ResponseWriter, r *http.Request) {
 		Enabled:     dest.Enabled,
 		SplitAlerts: dest.SplitAlerts,
 		Headers:     maskSensitiveHeaders(dest.Headers),
-		Retry: RetryConfig{
-			MaxAttempts:     dest.Retry.MaxAttempts,
-			Backoff:         dest.Retry.Backoff,
-			PerAlert:        dest.Retry.PerAlert,
-			BaseDelay:       "1s",                                     // Default values since not in config
-			MaxDelay:        "30s",                                    // Default values since not in config
-			Multiplier:      2.0,                                      // Default values since not in config
-			JitterEnabled:   true,                                     // Default values since not in config
-			RetryableErrors: []string{"timeout", "connection", "5xx"}, // Default values since not in config
-		},
-		CreatedAt: time.Now().UTC(), // TODO: Store actual creation time
-		UpdatedAt: time.Now().UTC(), // TODO: Store actual update time
+		CreatedAt:   time.Now().UTC(), // TODO: Store actual creation time
+		UpdatedAt:   time.Now().UTC(), // TODO: Store actual update time
 	}
 
 	if dest.Engine == "go-template" {

@@ -204,10 +204,6 @@ func TestGetDestination(t *testing.T) {
 				Enabled:     true,
 				SplitAlerts: true,
 				BatchSize:   10,
-				Retry: config.RetryConfig{
-					MaxAttempts: 3,
-					Backoff:     "exponential",
-				},
 			},
 		},
 	}
@@ -235,10 +231,6 @@ func TestGetDestination(t *testing.T) {
 	assert.Equal(t, "go-template", body["engine"])
 	assert.Equal(t, true, body["split_alerts"])
 	assert.Equal(t, float64(10), body["batch_size"])
-
-	retry := body["retry"].(map[string]interface{})
-	assert.Equal(t, float64(3), retry["max_attempts"])
-	assert.Equal(t, "exponential", retry["backoff"])
 }
 
 func TestGetDestinationNotFound(t *testing.T) {

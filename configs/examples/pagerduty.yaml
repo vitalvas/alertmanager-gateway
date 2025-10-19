@@ -75,11 +75,6 @@ destinations:
       Content-Type: "application/json"
       Accept: "application/vnd.pagerduty+json;version=2"
     enabled: true
-    retry:
-      max_attempts: 5
-      backoff: exponential
-      initial_delay: 1s
-      max_delay: 60s
     circuit_breaker:
       failure_threshold: 5
       success_threshold: 2

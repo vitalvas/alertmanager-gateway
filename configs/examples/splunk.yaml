@@ -30,9 +30,4 @@ destinations:
       Authorization: "Splunk ${env:SPLUNK_HEC_TOKEN}"
       X-Splunk-Request-Channel: "${env:SPLUNK_CHANNEL_ID}"
     enabled: true
-    retry:
-      max_attempts: 5
-      backoff: exponential
-      initial_delay: 1s
-      max_delay: 60s
 
