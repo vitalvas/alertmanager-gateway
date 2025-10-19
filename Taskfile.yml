@@ -73,11 +73,6 @@ tasks:
     cmds:
       - go test -v .
 
-  bench:
-    desc: Run benchmarks
-    cmds:
-      - go test -bench=. -benchmem ./...
-
   mod-update:
     desc: Update all dependencies
     cmds:
