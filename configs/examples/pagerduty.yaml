@@ -75,8 +75,3 @@ destinations:
       Content-Type: "application/json"
       Accept: "application/vnd.pagerduty+json;version=2"
     enabled: true
-    circuit_breaker:
-      failure_threshold: 5
-      success_threshold: 2
-      timeout: 30s
-      half_open_requests: 3
