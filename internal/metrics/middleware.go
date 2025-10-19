@@ -76,8 +76,8 @@ func sanitizePath(path string) string {
 		return "/api/v1/destinations/{name}"
 	case strings.HasPrefix(path, "/api/v1/test/"):
 		return "/api/v1/test/{destination}"
-	case path == "/health" || path == "/health/live" || path == "/health/ready":
-		return path
+	case path == "/health":
+		return "/health"
 	case path == "/metrics":
 		return "/metrics"
 	case strings.HasPrefix(path, "/api/v1/"):

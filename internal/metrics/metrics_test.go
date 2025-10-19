@@ -425,8 +425,6 @@ func TestSanitizePath(t *testing.T) {
 		{"/api/v1/destinations/test", "/api/v1/destinations/{name}"},
 		{"/api/v1/test/slack", "/api/v1/test/{destination}"},
 		{"/health", "/health"},
-		{"/health/live", "/health/live"},
-		{"/health/ready", "/health/ready"},
 		{"/metrics", "/metrics"},
 		{"/api/v1/config", "/api/v1/config"},
 		{"/unknown/path", "/other"},

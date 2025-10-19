@@ -338,36 +338,6 @@ func TestGoTemplateEngine_Properties(t *testing.T) {
 	})
 }
 
-func BenchmarkGoTemplateEngine_Transform(b *testing.B) {
-	engine, _ := NewGoTemplateEngine(`{
-		"alertname": "{{ .GroupLabels.alertname }}",
-		"status": "{{ .Status }}",
-		"severity": "{{ .CommonLabels.severity | upper }}",
-		"alerts": {{ len .Alerts }}
-	}`)
-
-	payload := &alertmanager.WebhookPayload{
-		Version:  "4",
-		GroupKey: "test",
-		Status:   "firing",
-		GroupLabels: map[string]string{
-			"alertname": "TestAlert",
-		},
-		CommonLabels: map[string]string{
-			"severity": "critical",
-		},
-		Alerts: make([]alertmanager.Alert, 10),
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := engine.Transform(payload)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
 func TestTemplateContext_JSONMarshaling(t *testing.T) {
 	ctx := &TemplateContext{
 		Version:  "4",

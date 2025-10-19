@@ -143,37 +143,6 @@ Returns the health status of the gateway service.
 }
 ```
 
-#### GET /health/live
-
-Kubernetes liveness probe endpoint.
-
-**Response Codes:**
-- `200 OK`: Service is alive
-- `503 Service Unavailable`: Service should be restarted
-
-**Response Body:**
-```json
-{
-  "status": "alive"
-}
-```
-
-#### GET /health/ready
-
-Kubernetes readiness probe endpoint.
-
-**Response Codes:**
-- `200 OK`: Service is ready to accept traffic
-- `503 Service Unavailable`: Service is not ready
-
-**Response Body:**
-```json
-{
-  "status": "ready",
-  "config_loaded": true
-}
-```
-
 ### Metrics Endpoint
 
 #### GET /metrics

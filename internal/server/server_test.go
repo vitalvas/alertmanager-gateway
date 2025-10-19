@@ -47,23 +47,6 @@ func TestHealthEndpoints(t *testing.T) {
 				assert.Contains(t, body, "uptime_seconds")
 			},
 		},
-		{
-			name:           "health live endpoint",
-			endpoint:       "/health/live",
-			expectedStatus: http.StatusOK,
-			checkResponse: func(t *testing.T, body map[string]interface{}) {
-				assert.Equal(t, "alive", body["status"])
-			},
-		},
-		{
-			name:           "health ready endpoint",
-			endpoint:       "/health/ready",
-			expectedStatus: http.StatusOK,
-			checkResponse: func(t *testing.T, body map[string]interface{}) {
-				assert.Equal(t, "ready", body["status"])
-				assert.Equal(t, true, body["config_loaded"])
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -82,32 +65,6 @@ func TestHealthEndpoints(t *testing.T) {
 			tt.checkResponse(t, body)
 		})
 	}
-}
-
-func TestHealthReadyNoDestinations(t *testing.T) {
-	cfg := &config.Config{
-		Server: config.ServerConfig{
-			Address: ":8080",
-		},
-		Destinations: []config.DestinationConfig{},
-	}
-
-	logger := logrus.New()
-	server, err := New(cfg, logger)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest("GET", "/health/ready", nil)
-	w := httptest.NewRecorder()
-
-	server.router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-
-	var body map[string]interface{}
-	err = json.Unmarshal(w.Body.Bytes(), &body)
-	require.NoError(t, err)
-
-	assert.Equal(t, "no destinations configured", body["status"])
 }
 
 func TestMetricsEndpoint(t *testing.T) {

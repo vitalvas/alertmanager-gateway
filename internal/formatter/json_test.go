@@ -162,22 +162,3 @@ func TestJSONFormatter_Properties(t *testing.T) {
 		assert.Equal(t, "json", formatter.Name())
 	})
 }
-
-func BenchmarkJSONFormatter_Format(b *testing.B) {
-	formatter := NewJSONFormatter()
-	data := map[string]interface{}{
-		"message": "test message",
-		"value":   42,
-		"nested": map[string]interface{}{
-			"array": []string{"one", "two", "three"},
-		},
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := formatter.Format(data)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}

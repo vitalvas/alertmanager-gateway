@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vitalvas/alertmanager-gateway/internal/alertmanager"
 	"github.com/vitalvas/alertmanager-gateway/internal/config"
@@ -17,47 +19,20 @@ import (
 	"github.com/vitalvas/alertmanager-gateway/internal/transform"
 )
 
+const version = "1.0.0" // Application version
+
 // Health check handlers
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	health := map[string]interface{}{
 		"status":             "healthy",
-		"version":            "1.0.0", // TODO: Make this configurable
+		"version":            version,
 		"uptime_seconds":     time.Since(startTime).Seconds(),
 		"config_loaded":      true,
 		"destinations_count": len(s.config.Destinations),
 	}
 
 	s.sendJSON(w, http.StatusOK, health)
-}
-
-func (s *Server) handleHealthLive(w http.ResponseWriter, _ *http.Request) {
-	response := map[string]string{
-		"status": "alive",
-	}
-	s.sendJSON(w, http.StatusOK, response)
-}
-
-func (s *Server) handleHealthReady(w http.ResponseWriter, _ *http.Request) {
-	// Check if we're ready to accept traffic
-	ready := true
-	status := "ready"
-
-	if len(s.config.Destinations) == 0 {
-		ready = false
-		status = "no destinations configured"
-	}
-
-	response := map[string]interface{}{
-		"status":        status,
-		"config_loaded": true,
-	}
-
-	if ready {
-		s.sendJSON(w, http.StatusOK, response)
-	} else {
-		s.sendJSON(w, http.StatusServiceUnavailable, response)
-	}
 }
 
 // Metrics handler (placeholder)
@@ -67,7 +42,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprintf(w, "# HELP alertmanager_gateway_info Gateway information\n")
 	fmt.Fprintf(w, "# TYPE alertmanager_gateway_info gauge\n")
-	fmt.Fprintf(w, "alertmanager_gateway_info{version=\"1.0.0\"} 1\n")
+	fmt.Fprintf(w, "alertmanager_gateway_info{version=\"%s\"} 1\n", version)
 }
 
 // Legacy API handlers (now delegated to API package)
@@ -101,8 +76,7 @@ func (s *Server) sendError(w http.ResponseWriter, status int, message string) {
 }
 
 func generateRequestID() string {
-	// Simple request ID generation
-	return fmt.Sprintf("%d-%d", time.Now().Unix(), runtime.NumGoroutine())
+	return uuid.New().String()
 }
 
 var startTime = time.Now()
@@ -243,7 +217,7 @@ func (s *Server) handleTestDestination(w http.ResponseWriter, r *http.Request) {
 		Destination:   destinationName,
 		Result:        result,
 		TestTimestamp: time.Now().UTC(),
-		RequestID:     generateAPIRequestID(),
+		RequestID:     generateRequestID(),
 	}
 
 	s.sendJSON(w, http.StatusOK, response)
@@ -285,7 +259,7 @@ func (s *Server) handleEmulateDestination(w http.ResponseWriter, r *http.Request
 		DryRun:             emulateReq.DryRun,
 		Result:             result,
 		EmulationTimestamp: time.Now().UTC(),
-		RequestID:          generateAPIRequestID(),
+		RequestID:          generateRequestID(),
 	}
 
 	s.sendJSON(w, http.StatusOK, response)
@@ -298,7 +272,7 @@ func (s *Server) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 	runtime.ReadMemStats(&memStats)
 
 	info := SystemInfo{
-		Version:          "1.0.0",          // TODO: Make configurable
+		Version:          version,
 		BuildTime:        time.Now().UTC(), // TODO: Inject build time
 		GoVersion:        runtime.Version(),
 		NumCPU:           runtime.NumCPU(),
@@ -512,7 +486,7 @@ func (s *Server) sendAPIError(w http.ResponseWriter, status int, message string)
 		Status:    "error",
 		Error:     message,
 		Timestamp: time.Now().UTC(),
-		RequestID: generateAPIRequestID(),
+		RequestID: generateRequestID(),
 	}
 
 	s.sendJSON(w, status, response)
@@ -556,12 +530,7 @@ func isSensitiveHeader(key string) bool {
 		"x-api-token", "bearer", "password", "secret",
 	}
 
-	keyLower := key
-	for i := 0; i < len(keyLower); i++ {
-		if keyLower[i] >= 'A' && keyLower[i] <= 'Z' {
-			keyLower = keyLower[:i] + string(keyLower[i]+32) + keyLower[i+1:]
-		}
-	}
+	keyLower := strings.ToLower(key)
 
 	for _, sensitive := range sensitiveHeaders {
 		if keyLower == sensitive {
@@ -569,10 +538,6 @@ func isSensitiveHeader(key string) bool {
 		}
 	}
 	return false
-}
-
-func generateAPIRequestID() string {
-	return fmt.Sprintf("%d-%d", time.Now().Unix(), runtime.NumGoroutine())
 }
 
 func getSampleWebhookData() *alertmanager.WebhookPayload {

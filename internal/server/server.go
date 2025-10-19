@@ -127,10 +127,8 @@ func (s *Server) GetRouter() *mux.Router {
 
 // setupRoutes configures all routes
 func (s *Server) setupRoutes() {
-	// Health check endpoints (keeping legacy endpoints for backward compatibility)
+	// Health check endpoint
 	s.router.HandleFunc("/health", s.handleHealth).Methods(http.MethodGet)
-	s.router.HandleFunc("/health/live", s.handleHealthLive).Methods(http.MethodGet)
-	s.router.HandleFunc("/health/ready", s.handleHealthReady).Methods(http.MethodGet)
 
 	// Metrics endpoint (placeholder for now)
 	s.router.HandleFunc("/metrics", s.handleMetrics).Methods(http.MethodGet)
