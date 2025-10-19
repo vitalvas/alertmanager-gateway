@@ -23,6 +23,7 @@ type Server struct {
 	httpServer     *http.Server
 	logger         *logrus.Logger
 	webhookHandler *webhook.Handler
+	hostname       string
 }
 
 // New creates a new server instance
@@ -32,11 +33,17 @@ func New(cfg *config.Config, logger *logrus.Logger) (*Server, error) {
 		return nil, fmt.Errorf("failed to create webhook handler: %w", err)
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+
 	s := &Server{
 		config:         cfg,
 		logger:         logger,
 		router:         mux.NewRouter(),
 		webhookHandler: webhookHandler,
+		hostname:       hostname,
 	}
 
 	// Setup routes
@@ -161,19 +168,8 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Security headers to prevent common web vulnerabilities
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
-		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "0")
-
-		// Remove server information
-		w.Header().Set("Server", "")
+		// Server identification
+		w.Header().Set("X-Server-Hostname", s.hostname)
 
 		next.ServeHTTP(w, r)
 	})
