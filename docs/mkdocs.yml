@@ -16,12 +16,8 @@ theme:
 nav:
   - Home: index.md
   - Architecture: architecture.md
-  - Configuration: configuration.md
   - API Reference: api.md
   - Usage Examples: usage-examples.md
-  - Deployment: deployment.md
-  - Performance: performance-optimizations.md
-  - Troubleshooting: troubleshooting.md
 
 markdown_extensions:
   - pymdownx.highlight:

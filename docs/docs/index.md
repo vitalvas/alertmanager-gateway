@@ -92,4 +92,4 @@ The gateway acts as a universal adapter, receiving standardized webhook payloads
 
 - Read the [Architecture Documentation](architecture.md) to understand the system design
 - Check the [API Reference](api.md) for endpoint details
-- Follow the [Deployment Guide](deployment.md) for production setup
+- Review [Usage Examples](usage-examples.md) for practical integration patterns

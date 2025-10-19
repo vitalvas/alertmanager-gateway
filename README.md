@@ -89,12 +89,8 @@ Run `task` to see all available tasks.
 Complete documentation is available in the [docs](docs/docs/) directory:
 
 - [Architecture](docs/docs/architecture.md) - System architecture and design patterns
-- [Configuration](docs/docs/configuration.md) - Configuration guide with examples
 - [API Reference](docs/docs/api.md) - REST API endpoints and usage
 - [Usage Examples](docs/docs/usage-examples.md) - Practical examples and recipes
-- [Deployment](docs/docs/deployment.md) - Deployment guides for various environments  
-- [Performance](docs/docs/performance-optimizations.md) - Performance tuning and optimization
-- [Troubleshooting](docs/docs/troubleshooting.md) - Common issues and solutions
 
 You can also view the documentation using MkDocs:
 
