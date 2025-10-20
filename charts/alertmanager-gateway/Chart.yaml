@@ -1,0 +1,17 @@
+apiVersion: v2
+name: alertmanager-gateway
+description: Universal adapter for Prometheus Alertmanager webhooks that transforms and routes alerts to various third-party notification systems
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+keywords:
+  - alertmanager
+  - prometheus
+  - webhooks
+  - notifications
+home: https://github.com/vitalvas/alertmanager-gateway
+sources:
+  - https://github.com/vitalvas/alertmanager-gateway
+maintainers:
+  - name: Vitaliy Vasylenko
+    url: https://github.com/vitalvas
