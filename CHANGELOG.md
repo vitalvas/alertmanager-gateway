@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/vitalvas/alertmanager-gateway/compare/v0.2.2...v0.3.0) (2025-10-20)
+
+
+### Features
+
+* create helm chart ([8592ee3](https://github.com/vitalvas/alertmanager-gateway/commit/8592ee399098cd5eba686af993f4b260dbcbe0a9))
+
 ## [0.2.2](https://github.com/vitalvas/alertmanager-gateway/compare/v0.2.1...v0.2.2) (2025-10-20)
 
 
