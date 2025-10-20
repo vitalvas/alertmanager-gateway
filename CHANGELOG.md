@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/vitalvas/alertmanager-gateway/compare/v0.3.0...v0.3.1) (2025-10-20)
+
+
+### Bug Fixes
+
+* add github summary ([98af31e](https://github.com/vitalvas/alertmanager-gateway/commit/98af31e57b9cdb7c557d012145eb49bdfc3e93e3))
+* version in chart ([e6299f7](https://github.com/vitalvas/alertmanager-gateway/commit/e6299f7043cd7fdabe1a74aa6cf29563a86eead6))
+
 ## [0.3.0](https://github.com/vitalvas/alertmanager-gateway/compare/v0.2.2...v0.3.0) (2025-10-20)
 
 
