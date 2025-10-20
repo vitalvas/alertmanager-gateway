@@ -39,9 +39,10 @@ The following table lists the configurable parameters of the chart and their def
 | `replicaCount` | Number of replicas | `1` |
 | `image.repository` | Image repository | `ghcr.io/vitalvas/alertmanager-gateway` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `image.tag` | Image tag | `""` (uses appVersion) |
+| `image.tag` | Image tag (set to release version automatically) | `""` (uses chart version) |
 | `service.type` | Service type | `ClusterIP` |
-| `service.port` | Service port | `8080` |
+| `service.port` | Service port (external) | `80` |
+| `service.targetPort` | Container target port | `8080` |
 | `ingress.enabled` | Enable ingress | `false` |
 | `resources.limits.cpu` | CPU limit | `200m` |
 | `resources.limits.memory` | Memory limit | `128Mi` |
@@ -101,7 +102,7 @@ Configure Alertmanager to send webhooks to the gateway:
 receivers:
   - name: 'slack-notifications'
     webhook_configs:
-      - url: 'http://my-gateway-alertmanager-gateway:8080/webhook/slack'
+      - url: 'http://my-gateway-alertmanager-gateway/webhook/slack'
         send_resolved: true
 ```
 

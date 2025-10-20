@@ -106,9 +106,12 @@ jobs:
           VERSION="${{ needs.release-please.outputs.tag_name }}"
           VERSION="${VERSION#v}"
 
-          # Update chart version
+          # Update chart version and appVersion
           sed -i "s/^version:.*/version: ${VERSION}/" charts/alertmanager-gateway/Chart.yaml
           sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" charts/alertmanager-gateway/Chart.yaml
+
+          # Update image tag in values.yaml
+          sed -i "s/^  tag: .*/  tag: \"${VERSION}\"/" charts/alertmanager-gateway/values.yaml
 
           # Package the chart
           helm package charts/alertmanager-gateway
@@ -124,6 +127,7 @@ jobs:
           **Chart:** alertmanager-gateway
           **Version:** ${VERSION}
           **Registry:** ${OCI_PATH}
+          **Image:** ghcr.io/${{ github.repository }}:${VERSION}
 
           ### Installation
 
