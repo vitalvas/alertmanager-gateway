@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/vitalvas/alertmanager-gateway/compare/v0.2.1...v0.2.2) (2025-10-20)
+
+
+### Bug Fixes
+
+* build docker on release ([7441689](https://github.com/vitalvas/alertmanager-gateway/commit/744168935ced8d4b6c528aaf4fe361cf456c8be3))
+
 ## [0.2.1](https://github.com/vitalvas/alertmanager-gateway/compare/v0.2.0...v0.2.1) (2025-10-20)
 
 
