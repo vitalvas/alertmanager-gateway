@@ -370,36 +370,88 @@ func TestNotFound(t *testing.T) {
 }
 
 func TestLoggingMiddleware(t *testing.T) {
-	cfg := &config.Config{
-		Server: config.ServerConfig{
-			Address: ":8080",
-		},
-		Destinations: []config.DestinationConfig{},
-	}
+	t.Run("logs regular requests", func(t *testing.T) {
+		cfg := &config.Config{
+			Server: config.ServerConfig{
+				Address: ":8080",
+			},
+			Destinations: []config.DestinationConfig{},
+		}
 
-	// Create a logger with a test hook
-	logger := logrus.New()
-	hook := &testLogHook{}
-	logger.AddHook(hook)
+		// Create a logger with a test hook
+		logger := logrus.New()
+		hook := &testLogHook{}
+		logger.AddHook(hook)
 
-	server, err := New(cfg, logger)
-	require.NoError(t, err)
+		server, err := New(cfg, logger)
+		require.NoError(t, err)
 
-	req := httptest.NewRequest("GET", "/health", nil)
-	req.Header.Set("User-Agent", "test-agent")
-	w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/destinations", nil)
+		req.Header.Set("User-Agent", "test-agent")
+		w := httptest.NewRecorder()
 
-	server.router.ServeHTTP(w, req)
+		server.router.ServeHTTP(w, req)
 
-	// Check that request was logged
-	assert.Len(t, hook.entries, 1)
-	entry := hook.entries[0]
-	assert.Equal(t, "HTTP request", entry.Message)
-	assert.Equal(t, "GET", entry.Data["method"])
-	assert.Equal(t, "/health", entry.Data["path"])
-	assert.Equal(t, 200, entry.Data["status"])
-	assert.Equal(t, "test-agent", entry.Data["user_agent"])
-	assert.Contains(t, entry.Data, "duration_ms")
+		// Check that request was logged
+		assert.Len(t, hook.entries, 1)
+		entry := hook.entries[0]
+		assert.Equal(t, "HTTP request", entry.Message)
+		assert.Equal(t, "GET", entry.Data["method"])
+		assert.Equal(t, "/api/v1/destinations", entry.Data["path"])
+		assert.Equal(t, 200, entry.Data["status"])
+		assert.Equal(t, "test-agent", entry.Data["user_agent"])
+		assert.Contains(t, entry.Data, "duration_ms")
+	})
+
+	t.Run("excludes health endpoint from logging", func(t *testing.T) {
+		cfg := &config.Config{
+			Server: config.ServerConfig{
+				Address: ":8080",
+			},
+			Destinations: []config.DestinationConfig{},
+		}
+
+		// Create a logger with a test hook
+		logger := logrus.New()
+		hook := &testLogHook{}
+		logger.AddHook(hook)
+
+		server, err := New(cfg, logger)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/health", nil)
+		w := httptest.NewRecorder()
+
+		server.router.ServeHTTP(w, req)
+
+		// Check that health endpoint was NOT logged
+		assert.Len(t, hook.entries, 0)
+	})
+
+	t.Run("excludes metrics endpoint from logging", func(t *testing.T) {
+		cfg := &config.Config{
+			Server: config.ServerConfig{
+				Address: ":8080",
+			},
+			Destinations: []config.DestinationConfig{},
+		}
+
+		// Create a logger with a test hook
+		logger := logrus.New()
+		hook := &testLogHook{}
+		logger.AddHook(hook)
+
+		server, err := New(cfg, logger)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/metrics", nil)
+		w := httptest.NewRecorder()
+
+		server.router.ServeHTTP(w, req)
+
+		// Check that metrics endpoint was NOT logged
+		assert.Len(t, hook.entries, 0)
+	})
 }
 
 func TestRecoveryMiddleware(t *testing.T) {

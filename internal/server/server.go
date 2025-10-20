@@ -186,6 +186,11 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		// Process request
 		next.ServeHTTP(wrapped, r)
 
+		// Skip logging for health and metrics endpoints to reduce noise
+		if r.URL.Path == "/health" || r.URL.Path == "/metrics" {
+			return
+		}
+
 		// Log request details
 		s.logger.WithFields(logrus.Fields{
 			"method":      r.Method,
