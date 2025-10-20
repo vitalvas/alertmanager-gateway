@@ -1,8 +1,11 @@
 name: Build and Push Docker Images
 
 on:
+  push:
+    tags:
+      - 'v*'
   release:
-    types: [published]
+    types: [created, published]
 
 permissions:
   contents: read
