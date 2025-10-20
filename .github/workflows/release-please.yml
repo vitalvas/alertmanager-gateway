@@ -114,4 +114,26 @@ jobs:
           helm package charts/alertmanager-gateway
 
           # Push to OCI registry
+          OCI_PATH="oci://ghcr.io/${{ github.repository }}/charts/alertmanager-gateway"
           helm push alertmanager-gateway-${VERSION}.tgz oci://ghcr.io/${{ github.repository }}/charts
+
+          # Add step summary
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## Helm Chart Published
+
+          **Chart:** alertmanager-gateway
+          **Version:** ${VERSION}
+          **Registry:** ${OCI_PATH}
+
+          ### Installation
+
+          \`\`\`bash
+          helm install my-gateway ${OCI_PATH} --version ${VERSION}
+          \`\`\`
+
+          ### Upgrade
+
+          \`\`\`bash
+          helm upgrade my-gateway ${OCI_PATH} --version ${VERSION}
+          \`\`\`
+          EOF
