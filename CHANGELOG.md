@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/vitalvas/alertmanager-gateway/compare/v0.3.1...v0.3.2) (2025-10-20)
+
+
+### Bug Fixes
+
+* exclude endpoints from logs ([b70c582](https://github.com/vitalvas/alertmanager-gateway/commit/b70c582371118830375fc8945b89dabae10635c9))
+
 ## [0.3.1](https://github.com/vitalvas/alertmanager-gateway/compare/v0.3.0...v0.3.1) (2025-10-20)
 
 
